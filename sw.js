@@ -1,4 +1,4 @@
-const CACHE_NAME = 'tradebook-v1'; // naikin tiap deploy update
+const CACHE_NAME = 'tradebook-v2'; // naikin tiap deploy update
 const ASSETS = ['./', './index.html', './style.css', './script.js', './manifest.json'];
 
 self.addEventListener('install', (event) => {
