@@ -685,7 +685,7 @@ const app = {
         const cleaned = String(raw).trim().replace(/[.\s]/g, '').replace(/,/g, '.');
         if (!/^-?\d+(\.\d+)?$/.test(cleaned)) return null;
         const num = Number(cleaned);
-        if (!Number.isF(init)(num)) return null;
+        if (!Number.isFinite(num)) return null;
         return Math.round(num);
     },
 

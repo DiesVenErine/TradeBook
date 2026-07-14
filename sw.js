@@ -1,5 +1,5 @@
-const CACHE_NAME = 'tradebook-v1'; // naikin tiap deploy update
-const ASSETS = ['./', './index.html', './style.css', './script.js', './manifest.json'];
+const CACHE_NAME = 'tradebook-v3'; // naikin tiap deploy update
+const ASSETS = ['./', './index.html', './style.css', './script.js', './manifest.json', './icon-192.png', './icon-512.png'];
 
 self.addEventListener('install', (event) => {
   event.waitUntil(caches.open(CACHE_NAME).then((cache) => cache.addAll(ASSETS)));
