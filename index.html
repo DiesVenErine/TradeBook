@@ -356,7 +356,7 @@ l<!doctype html>
                 </div>
 
                     <div class="centered-balance">
-                        <p class="card-subtitle">Saldo Exchange (Total)</p>
+                        <p class="card-subtitle" id="inv-balance-label">Saldo Exchange (Total)</p>
                         <h1
                             id="inv-asset-balance"
                             class="balance-amount"
@@ -366,7 +366,7 @@ l<!doctype html>
                         </h1>
                     </div>
 
-                    <div class="card" style="margin: 0 0 24px;">
+                    <div class="card" id="inv-invest-section" style="margin: 0 0 24px;">
                         <p class="card-subtitle" style="text-align:center;">Siklus Nabung (30 Hari)</p>
                         <div class="cycle-ring" id="inv-cycle-ring" style="--pct:0;">
                             <span class="cycle-ring-text" id="inv-cycle-pct">0%</span>
@@ -387,18 +387,27 @@ l<!doctype html>
                         </button>
                     </div>
 
+                    <div class="card" id="inv-savings-section" style="margin: 0 0 24px; display:none;">
+                        <p class="card-subtitle" style="text-align:center;">Pengaturan Celengan</p>
+                        <label style="display:block; font-size:0.85rem; font-weight:600; color:var(--text-secondary); margin: 16px 0 8px;">Minimal Nabung Harian (Rp)</label>
+                        <input type="text" inputmode="numeric" id="inv-savings-min" class="sheet-input" placeholder="3000">
+                        <button class="btn btn-secondary" style="width:100%; margin-top:12px;" onclick="app.handleSavingsSettings()">
+                            <i class="fa-solid fa-gear"></i> Simpan Pengaturan
+                        </button>
+                    </div>
+
                     <div class="action-buttons">
                         <button
                             class="btn btn-primary"
                             onclick="app.handleInvestmentDeposit()"
                         >
-                            <i class="fa-solid fa-arrow-down"></i> Deposit
+                            <i class="fa-solid fa-arrow-down"></i> <span id="inv-deposit-label">Deposit</span>
                         </button>
                         <button
                             class="btn btn-secondary"
                             onclick="app.handleInvestmentWithdraw()"
                         >
-                            <i class="fa-solid fa-arrow-up"></i> Withdraw
+                            <i class="fa-solid fa-arrow-up"></i> <span id="inv-withdraw-label">Withdraw</span>
                         </button>
                     </div>
                     <button

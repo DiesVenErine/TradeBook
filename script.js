@@ -35,19 +35,24 @@ const app = {
 
             if (saved.investment && saved.investment.assets) {
                 state.investment.assets = saved.investment.assets;
-                // Backfill: aset lama yang belum punya data siklus
+                // Backfill: aset lama yang belum punya data siklus / tipe
                 Object.values(state.investment.assets).forEach(asset => {
-                    if (!asset.cycleStart) asset.cycleStart = this.todayISO();
-                    if (asset.cycleAmount === undefined) asset.cycleAmount = 0;
-                    if (asset.cycleTarget === undefined)
-                        asset.cycleTarget = 150000;
-                    if (asset.minDeposit === undefined) asset.minDeposit = 5000;
-                    // Migrasi: saldo lama dianggap sudah di-exchange semua
-                    if (asset.exchangeTotal === undefined)
-                        asset.exchangeTotal = asset.balance || 0;
-                    if (asset.pendingAmount === undefined)
-                        asset.pendingAmount = 0;
-                    if (!asset.topupLog) asset.topupLog = [];
+                    if (!asset.type) asset.type = "invest";
+                    if (asset.type === "invest") {
+                        if (!asset.cycleStart) asset.cycleStart = this.todayISO();
+                        if (asset.cycleAmount === undefined) asset.cycleAmount = 0;
+                        if (asset.cycleTarget === undefined)
+                            asset.cycleTarget = 150000;
+                        if (asset.minDeposit === undefined) asset.minDeposit = 5000;
+                        // Migrasi: saldo lama dianggap sudah di-exchange semua
+                        if (asset.exchangeTotal === undefined)
+                            asset.exchangeTotal = asset.balance || 0;
+                        if (asset.pendingAmount === undefined)
+                            asset.pendingAmount = 0;
+                        if (!asset.topupLog) asset.topupLog = [];
+                    } else {
+                        if (asset.minDeposit === undefined) asset.minDeposit = 3000;
+                    }
                 });
             }
             if (saved.categories) {
@@ -525,15 +530,21 @@ const app = {
         names.forEach(name => {
             const asset = assets[name];
             const safeName = name.replace(/'/g, "\\'");
+            const isSavings = asset.type === "savings";
+            const icon = isSavings ? "fa-piggy-bank" : "fa-coins";
+            const iconStyle = isSavings
+                ? "background: rgba(0, 200, 83, 0.1); color: var(--profit-color);"
+                : "background: rgba(255, 215, 0, 0.1); color: var(--primary-color);";
+            const typeLabel = isSavings ? "Simpanan" : "Investasi";
             const card = document.createElement("div");
             card.className = "card category-card";
             card.style.cursor = "pointer";
             card.onclick = () => this.openInvestmentAsset(name);
             card.innerHTML = `
                 <div class="cat-info">
-                    <div class="cat-icon" style="background: rgba(255, 215, 0, 0.1); color: var(--primary-color);"><i class="fa-solid fa-coins"></i></div>
+                    <div class="cat-icon" style="${iconStyle}"><i class="fa-solid ${icon}"></i></div>
                     <div>
-                        <h3>${name}</h3>
+                        <h3>${name} <span class="asset-type-badge">${typeLabel}</span></h3>
                         <p class="balance-amount">${this.isBalanceHidden ? "Rp ••••••••" : this.formatCurrency(asset.balance)}</p>
                     </div>
                 </div>
@@ -551,8 +562,15 @@ const app = {
 
     handleAddAsset() {
         this.openSheet({
-            title: "Tambah Aset Investment",
+            title: "Tambah Aset",
             fields: [
+                {
+                    id: "type",
+                    label: "Jenis Aset",
+                    type: "segmented",
+                    options: ["Investasi", "Simpanan"],
+                    default: "Investasi"
+                },
                 {
                     id: "name",
                     label: "Nama Aset",
@@ -567,18 +585,29 @@ const app = {
                 if (state.investment.assets[name])
                     return "Aset dengan nama ini sudah ada.";
 
-                state.investment.assets[name] = {
-                    balance: 0,
-                    deposited: 0,
-                    history: [],
-                    cycleStart: this.todayISO(),
-                    cycleAmount: 0,
-                    cycleTarget: 150000,
-                    minDeposit: 5000,
-                    exchangeTotal: 0,
-                    pendingAmount: 0,
-                    topupLog: []
-                };
+                const isSavings = values.type === "Simpanan";
+
+                state.investment.assets[name] = isSavings
+                    ? {
+                          type: "savings",
+                          balance: 0,
+                          deposited: 0,
+                          history: [],
+                          minDeposit: 3000
+                      }
+                    : {
+                          type: "invest",
+                          balance: 0,
+                          deposited: 0,
+                          history: [],
+                          cycleStart: this.todayISO(),
+                          cycleAmount: 0,
+                          cycleTarget: 150000,
+                          minDeposit: 5000,
+                          exchangeTotal: 0,
+                          pendingAmount: 0,
+                          topupLog: []
+                      };
                 this.saveState();
                 this.renderInvestmentView();
                 this.renderHome();
@@ -602,29 +631,46 @@ const app = {
             return;
         }
 
-        this.checkCycleReset(asset);
+        const isSavings = asset.type === "savings";
+        document.getElementById("inv-invest-section").style.display = isSavings ? "none" : "block";
+        document.getElementById("inv-savings-section").style.display = isSavings ? "block" : "none";
+        document.getElementById("inv-deposit-label").textContent = isSavings ? "Nabung" : "Deposit";
+        document.getElementById("inv-withdraw-label").textContent = isSavings ? "Pakai" : "Withdraw";
+        document.getElementById("inv-balance-label").textContent = isSavings ? "Saldo Celengan" : "Saldo Exchange (Total)";
 
         document.getElementById("inv-asset-title").textContent = name;
-        this.setBalance(
-            document.getElementById("inv-asset-balance"),
-            asset.exchangeTotal
-        );
 
-        const pct = Math.min(
-            Math.round((asset.cycleAmount / asset.cycleTarget) * 100),
-            100
-        );
-        document
-            .getElementById("inv-cycle-ring")
-            .style.setProperty("--pct", pct);
-        document.getElementById("inv-cycle-pct").textContent = pct + "%";
-        document.getElementById("inv-cycle-amount").textContent =
-            `${this.formatCurrency(asset.cycleAmount)} / ${this.formatCurrency(asset.cycleTarget)}`;
-        const daysSince = Math.min(this.getDaysSince(asset.cycleStart) + 1, 30);
-        document.getElementById("inv-cycle-day").textContent =
-            `Hari ke-${daysSince} dari 30`;
-        document.getElementById("inv-pending-amount").textContent =
-            this.formatCurrency(asset.pendingAmount);
+        if (isSavings) {
+            this.setBalance(
+                document.getElementById("inv-asset-balance"),
+                asset.balance
+            );
+            const minInput = document.getElementById("inv-savings-min");
+            if (minInput) minInput.value = asset.minDeposit;
+        } else {
+            this.checkCycleReset(asset);
+            this.setBalance(
+                document.getElementById("inv-asset-balance"),
+                asset.exchangeTotal
+            );
+
+            const pct = Math.min(
+                Math.round((asset.cycleAmount / asset.cycleTarget) * 100),
+                100
+            );
+            document
+                .getElementById("inv-cycle-ring")
+                .style.setProperty("--pct", pct);
+            document.getElementById("inv-cycle-pct").textContent = pct + "%";
+            document.getElementById("inv-cycle-amount").textContent =
+                `${this.formatCurrency(asset.cycleAmount)} / ${this.formatCurrency(asset.cycleTarget)}`;
+            const daysSince = Math.min(this.getDaysSince(asset.cycleStart) + 1, 30);
+            document.getElementById("inv-cycle-day").textContent =
+                `Hari ke-${daysSince} dari 30`;
+            document.getElementById("inv-pending-amount").textContent =
+                this.formatCurrency(asset.pendingAmount);
+        }
+
         this.renderInvestmentHistory();
     },
 
@@ -663,8 +709,10 @@ const app = {
     },
 
     handleInvestmentDeposit() {
+        const currentAsset = state.investment.assets[state.investment.currentAsset];
+        const isSavings = currentAsset && currentAsset.type === "savings";
         this.openSheet({
-            title: "Deposit",
+            title: isSavings ? "Nabung" : "Deposit",
             fields: [
                 {
                     id: "amount",
@@ -674,7 +722,7 @@ const app = {
                     placeholder: ""
                 }
             ],
-            confirmLabel: "Deposit",
+            confirmLabel: isSavings ? "Nabung" : "Deposit",
             onConfirm: values => {
                 const amount = this.parseAmount(values.amount);
                 if (amount === null || amount <= 0)
@@ -682,34 +730,55 @@ const app = {
 
                 const asset =
                     state.investment.assets[state.investment.currentAsset];
-                this.checkCycleReset(asset);
-                asset.pendingAmount += amount;
-                asset.deposited += amount;
-                asset.cycleAmount += amount;
-                asset.balance = asset.exchangeTotal + asset.pendingAmount;
-                asset.history.push(
-                    this.makeEntry(
-                        "deposit",
-                        "Deposit",
-                        "DEPOSIT",
-                        "badge-buy",
-                        amount
-                    )
-                );
+
+                if (asset.type === "savings") {
+                    asset.balance += amount;
+                    asset.deposited += amount;
+                    asset.history.push(
+                        this.makeEntry(
+                            "deposit",
+                            "Nabung",
+                            "NABUNG",
+                            "badge-buy",
+                            amount
+                        )
+                    );
+                } else {
+                    this.checkCycleReset(asset);
+                    asset.pendingAmount += amount;
+                    asset.deposited += amount;
+                    asset.cycleAmount += amount;
+                    asset.balance = asset.exchangeTotal + asset.pendingAmount;
+                    asset.history.push(
+                        this.makeEntry(
+                            "deposit",
+                            "Deposit",
+                            "DEPOSIT",
+                            "badge-buy",
+                            amount
+                        )
+                    );
+                }
 
                 this.saveState();
                 this.renderInvestmentAsset();
                 this.renderInvestmentView();
                 this.renderHome();
-                this.toast("Deposit berhasil ditambahkan 🚀");
+                this.toast(
+                    asset.type === "savings"
+                        ? "Nabung berhasil ditambahkan 🐷"
+                        : "Deposit berhasil ditambahkan 🚀"
+                );
                 return null;
             }
         });
     },
 
     handleInvestmentWithdraw() {
+        const currentAsset = state.investment.assets[state.investment.currentAsset];
+        const isSavings = currentAsset && currentAsset.type === "savings";
         this.openSheet({
-            title: "Withdraw",
+            title: isSavings ? "Pakai Saldo" : "Withdraw",
             fields: [
                 {
                     id: "amount",
@@ -719,7 +788,7 @@ const app = {
                     placeholder: ""
                 }
             ],
-            confirmLabel: "Withdraw",
+            confirmLabel: isSavings ? "Pakai" : "Withdraw",
             onConfirm: values => {
                 const amount = this.parseAmount(values.amount);
                 if (amount === null || amount <= 0)
@@ -727,26 +796,45 @@ const app = {
 
                 const asset =
                     state.investment.assets[state.investment.currentAsset];
-                if (amount > asset.exchangeTotal)
-                    return "Saldo exchange tidak cukup (masih ada yang belum ditop up).";
 
-                asset.exchangeTotal -= amount;
-                asset.balance = asset.exchangeTotal + asset.pendingAmount;
-                asset.history.push(
-                    this.makeEntry(
-                        "withdraw",
-                        "Withdraw",
-                        "WITHDRAW",
-                        "badge-sell",
-                        -amount
-                    )
-                );
+                if (asset.type === "savings") {
+                    if (amount > asset.balance)
+                        return "Saldo celengan tidak cukup.";
+                    asset.balance -= amount;
+                    asset.history.push(
+                        this.makeEntry(
+                            "withdraw",
+                            "Pakai Saldo",
+                            "PAKAI",
+                            "badge-sell",
+                            -amount
+                        )
+                    );
+                } else {
+                    if (amount > asset.exchangeTotal)
+                        return "Saldo exchange tidak cukup (masih ada yang belum ditop up).";
+                    asset.exchangeTotal -= amount;
+                    asset.balance = asset.exchangeTotal + asset.pendingAmount;
+                    asset.history.push(
+                        this.makeEntry(
+                            "withdraw",
+                            "Withdraw",
+                            "WITHDRAW",
+                            "badge-sell",
+                            -amount
+                        )
+                    );
+                }
 
                 this.saveState();
                 this.renderInvestmentAsset();
                 this.renderInvestmentView();
                 this.renderHome();
-                this.toast("Penarikan berhasil diproses 💸");
+                this.toast(
+                    asset.type === "savings"
+                        ? "Saldo berhasil dipakai 💸"
+                        : "Penarikan berhasil diproses 💸"
+                );
                 return null;
             }
         });
@@ -789,9 +877,46 @@ const app = {
         });
     },
 
+handleSavingsSettings() {
+        const asset = state.investment.assets[state.investment.currentAsset];
+        if (!asset) return;
+        const input = document.getElementById("inv-savings-min");
+        const minDep = this.parseAmount(input.value);
+        if (minDep === null || minDep < 0) {
+            this.toast("Masukkan minimal nabung yang valid.");
+            return;
+        }
+        asset.minDeposit = minDep;
+        this.saveState();
+        this.toast("Pengaturan disimpan ✨");
+    },
+
     handleBalanceCorrection() {
         const asset = state.investment.assets[state.investment.currentAsset];
         if (!asset) return;
+
+        if (asset.type === 'savings') {
+            this.openSheet({
+                title: 'Edit Saldo (Koreksi Manual)',
+                fields: [
+                    { id: 'balance', label: 'Saldo Celengan (Rp)', type: 'text', inputmode: 'numeric', placeholder: String(asset.balance) }
+                ],
+                confirmLabel: 'Simpan Koreksi',
+                onConfirm: (values) => {
+                    const bal = this.parseAmount(values.balance);
+                    if (bal === null || bal < 0) return 'Masukkan jumlah yang valid.';
+                    asset.balance = bal;
+
+                    this.saveState();
+                    this.renderInvestmentAsset();
+                    this.renderInvestmentView();
+                    this.renderHome();
+                    this.toast('Saldo dikoreksi ✨');
+                    return null;
+                }
+            });
+            return;
+        }
 
         this.openSheet({
             title: 'Edit Saldo (Koreksi Manual)',
@@ -892,14 +1017,24 @@ const app = {
         if (idx === -1) return;
 
         const entry = asset.history[idx];
-        if (entry.kind === "deposit") {
-            asset.pendingAmount -= entry.pnlValue;
-            asset.deposited -= entry.pnlValue;
-            asset.cycleAmount -= entry.pnlValue;
-        } else if (entry.kind === "withdraw") {
-            asset.exchangeTotal -= entry.pnlValue; // pnlValue negatif, jadi ini nambah balik
+
+        if (asset.type === "savings") {
+            if (entry.kind === "deposit") {
+                asset.balance -= entry.pnlValue;
+                asset.deposited -= entry.pnlValue;
+            } else if (entry.kind === "withdraw") {
+                asset.balance -= entry.pnlValue; // pnlValue negatif, jadi ini nambah balik
+            }
+        } else {
+            if (entry.kind === "deposit") {
+                asset.pendingAmount -= entry.pnlValue;
+                asset.deposited -= entry.pnlValue;
+                asset.cycleAmount -= entry.pnlValue;
+            } else if (entry.kind === "withdraw") {
+                asset.exchangeTotal -= entry.pnlValue; // pnlValue negatif, jadi ini nambah balik
+            }
+            asset.balance = asset.exchangeTotal + asset.pendingAmount;
         }
-        asset.balance = asset.exchangeTotal + asset.pendingAmount;
 
         asset.history.splice(idx, 1);
         this.saveState();
