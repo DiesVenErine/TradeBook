@@ -1,341 +1,680 @@
-l<!DOCTYPE html>
+l<!doctype html>
 <html lang="en" data-theme="dark">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>TradeBook | Premium Dashboard</title>
-    <link rel="manifest" href="manifest.json">
-    <meta name="theme-color" content="#0d0d0d">
-    <link rel="apple-touch-icon" href="icon-192.png">
-    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <link rel="stylesheet" href="style.css">
-</head>
-<body>
+    <head>
+        <meta charset="UTF-8" />
+        <meta
+            name="viewport"
+            content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"
+        />
+        <title>TradeBook | Premium Dashboard</title>
+        <link rel="manifest" href="manifest.json" />
+        <meta name="theme-color" content="#0d0d0d" />
+        <link rel="apple-touch-icon" href="icon-192.png" />
+        <link
+            href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap"
+            rel="stylesheet"
+        />
+        <link
+            rel="stylesheet"
+            href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"
+        />
+        <link rel="stylesheet" href="style.css" />
+    </head>
+    <body>
+        <div class="overlay" id="overlay"></div>
 
-    <div class="overlay" id="overlay"></div>
+        <nav class="sidebar" id="sidebar">
+            <div class="sidebar-header">
+                <h2>
+                    Trade<span class="text-accent">Book</span>
+                    <i
+                        class="fa-solid fa-bolt"
+                        style="color: var(--primary-color)"
+                    ></i>
+                </h2>
+            </div>
+            <ul class="menu-items">
+                <li onclick="app.navigate('home')">
+                    <i class="fa-solid fa-house"></i> Dashboard
+                </li>
+                <li onclick="app.navigate('investment')">
+                    <i class="fa-solid fa-chart-pie"></i> Investment
+                </li>
+                <li onclick="app.navigate('trading')">
+                    <i class="fa-solid fa-chart-line"></i> Trading
+                </li>
+                <li onclick="app.navigate('stats')">
+                    <i class="fa-solid fa-chart-simple"></i> Statistics
+                </li>
+                <li onclick="app.navigate('settings')">
+                    <i class="fa-solid fa-gear"></i> Settings
+                </li>
+                <li onclick="app.navigate('about')">
+                    <i class="fa-solid fa-circle-info"></i> About
+                </li>
+                <li class="menu-danger" onclick="app.confirmResetAll()">
+                    <i class="fa-solid fa-trash-can"></i> Reset Semua Data
+                </li>
+            </ul>
+            <div class="theme-toggle" onclick="app.toggleTheme()">
+                <i class="fa-solid fa-moon"></i> Toggle Theme
+            </div>
+        </nav>
 
-    <nav class="sidebar" id="sidebar">
-        <div class="sidebar-header">
-            <h2>Trade<span class="text-accent">Book</span> <i class="fa-solid fa-bolt" style="color: var(--primary-color);"></i></h2>
-        </div>
-        <ul class="menu-items">
-            <li onclick="app.navigate('home')"><i class="fa-solid fa-house"></i> Dashboard</li>
-            <li onclick="app.navigate('investment')"><i class="fa-solid fa-chart-pie"></i> Investment</li>
-            <li onclick="app.navigate('trading')"><i class="fa-solid fa-chart-line"></i> Trading</li>
-            <li onclick="app.navigate('stats')"><i class="fa-solid fa-chart-simple"></i> Statistics</li>
-            <li onclick="app.navigate('settings')"><i class="fa-solid fa-gear"></i> Settings</li>
-            <li onclick="app.navigate('about')"><i class="fa-solid fa-circle-info"></i> About</li>
-            <li class="menu-danger" onclick="app.confirmResetAll()"><i class="fa-solid fa-trash-can"></i> Reset Semua Data</li>
-        </ul>
-        <div class="theme-toggle" onclick="app.toggleTheme()">
-            <i class="fa-solid fa-moon"></i> Toggle Theme
-        </div>
-    </nav>
-
-    <main class="app-container">
-
-        <header class="top-bar">
-            <button class="icon-btn" onclick="app.toggleMenu()"><i class="fa-solid fa-bars"></i></button>
-            <h1 class="logo">Trade<span class="text-accent">Book</span></h1>
-            <button class="icon-btn profile-btn"><i class="fa-solid fa-user"></i></button>
-        </header>
-
-        <div class="views-wrapper">
-
-            <section id="view-home" class="view active">
-                <div class="greeting-section">
-                    <p class="date" id="current-date">Loading date...</p>
-                    <h2 class="greeting">Good <span class="text-accent">Evening!</span> ✨</h2>
-                </div>
-
-                <div class="card balance-card main-balance">
-                    <p class="card-subtitle">Total Balance</p>
-                    <div class="balance-row">
-                        <h1 class="balance-amount" id="home-total" data-value="0">Rp0</h1>
-                        <button class="icon-btn toggle-eye" onclick="app.toggleBalance()"><i class="fa-solid fa-eye"></i></button>
-                    </div>
-                    <div class="badge profit" id="home-total-badge"><i class="fa-solid fa-arrow-trend-up"></i> +0.0% This Month</div>
-                </div>
-
-                <div class="grid-2">
-                    <div class="card clickable-card" onclick="app.navigate('investment')">
-                        <div class="card-icon"><i class="fa-solid fa-vault"></i></div>
-                        <p class="card-subtitle">Investment</p>
-                        <h3 class="card-title balance-amount" id="home-investment" data-value="0">Rp0</h3>
-                    </div>
-                    <div class="card clickable-card" onclick="app.navigate('trading')">
-                        <div class="card-icon primary-icon"><i class="fa-solid fa-chart-line"></i></div>
-                        <p class="card-subtitle">Trading</p>
-                        <h3 class="card-title balance-amount" id="home-trading" data-value="0">Rp0</h3>
-                    </div>
-                </div>
-
-                <div class="section-title">Quick Summary</div>
-                <div class="card summary-card">
-                    <div class="summary-item">
-                        <div class="summary-left">
-                            <div class="summary-icon profit-icon"><i class="fa-solid fa-arrow-trend-up"></i></div>
-                            <p>Today's Profit</p>
-                        </div>
-                        <h4 class="text-profit" id="home-today-profit">+ Rp0</h4>
-                    </div>
-                    <div class="summary-item">
-                        <div class="summary-left">
-                            <div class="summary-icon neutral-icon"><i class="fa-solid fa-repeat"></i></div>
-                            <p>Today's Trades</p>
-                        </div>
-                        <h4 id="home-today-trades">0</h4>
-                    </div>
-                    <div class="summary-item">
-                        <div class="summary-left">
-                            <div class="summary-icon primary-icon-sm"><i class="fa-solid fa-chart-line"></i></div>
-                            <p>Monthly Growth</p>
-                        </div>
-                        <h4 class="text-profit" id="home-monthly-growth">+ 0.0%</h4>
-                    </div>
-                </div>
-            </section>
-
-            <section id="view-trading" class="view">
-                <div class="page-header">
-                    <button class="back-btn" onclick="app.navigate('home')"><i class="fa-solid fa-arrow-left"></i></button>
-                    <h2>Trading <span class="text-accent">Hub</span></h2>
-                </div>
-
-                <div class="card balance-card">
-                    <p class="card-subtitle">Trading Balance</p>
-                    <h1 class="balance-amount" id="trading-total" data-value="0">Rp0</h1>
-                </div>
-
-                <div class="category-list">
-                    <div class="card category-card" onclick="app.openCategory('Forex')">
-                        <div class="cat-info">
-                            <div class="cat-icon" style="background: rgba(0, 200, 83, 0.1); color: #00C853;"><i class="fa-solid fa-money-bill-transfer"></i></div>
-                            <div>
-                                <h3>Forex</h3>
-                                <p class="balance-amount" id="cat-list-Forex" data-value="0">Rp0</p>
-                            </div>
-                        </div>
-                        <div class="cat-trend" id="cat-trend-Forex">+0.0%</div>
-                    </div>
-
-                    <div class="card category-card" onclick="app.openCategory('Crypto')">
-                        <div class="cat-info">
-                            <div class="cat-icon" style="background: rgba(255, 215, 0, 0.1); color: #FFD700;"><i class="fa-brands fa-bitcoin"></i></div>
-                            <div>
-                                <h3>Crypto</h3>
-                                <p class="balance-amount" id="cat-list-Crypto" data-value="0">Rp0</p>
-                            </div>
-                        </div>
-                        <div class="cat-trend" id="cat-trend-Crypto">+0.0%</div>
-                    </div>
-
-                    <div class="card category-card" onclick="app.openCategory('Stocks')">
-                        <div class="cat-info">
-                            <div class="cat-icon" style="background: rgba(255, 61, 0, 0.1); color: #FF3D00;"><i class="fa-solid fa-building"></i></div>
-                            <div>
-                                <h3>Stocks</h3>
-                                <p class="balance-amount" id="cat-list-Stocks" data-value="0">Rp0</p>
-                            </div>
-                        </div>
-                        <div class="cat-trend" id="cat-trend-Stocks">+0.0%</div>
-                    </div>
-                </div>
-            </section>
-            
-            <section id="view-investment" class="view">
-                <div class="page-header">
-                    <button class="back-btn" onclick="app.navigate('home')"><i class="fa-solid fa-arrow-left"></i></button>
-                    <h2>Investment</h2>
-                </div>
-
-                <div class="card balance-card">
-                    <p class="card-subtitle">Total Investment Balance</p>
-                    <h1 class="balance-amount" id="inv-total" data-value="0">Rp0</h1>
-                </div>
-
-                <button class="btn btn-primary" style="width: 100%; margin-top: 20px;" onclick="app.handleAddAsset()">
-                    <i class="fa-solid fa-plus"></i> Tambah Aset
+        <main class="app-container">
+            <header class="top-bar">
+                <button class="icon-btn" onclick="app.toggleMenu()">
+                    <i class="fa-solid fa-bars"></i>
                 </button>
+                <h1 class="logo">Trade<span class="text-accent">Book</span></h1>
+                <button class="icon-btn profile-btn">
+                    <i class="fa-solid fa-user"></i>
+                </button>
+            </header>
 
-                <div class="section-title">Daftar Aset</div>
-                <div id="investment-list" class="category-list">
-                    <p class="empty-state">Belum ada aset investment. Tambah aset dulu, misal "Solana".</p>
-                </div>
-            </section>
+            <div class="views-wrapper">
+                <section id="view-home" class="view active">
+                    <div class="greeting-section">
+                        <p class="date" id="current-date">Loading date...</p>
+                        <h2 class="greeting">
+                            Good <span class="text-accent">Evening!</span> ✨
+                        </h2>
+                    </div>
 
-            <section id="view-investment-asset" class="view">
-                <div class="page-header">
+                    <div class="card balance-card main-balance">
+                        <p class="card-subtitle">Total Balance</p>
+                        <div class="balance-row">
+                            <h1
+                                class="balance-amount"
+                                id="home-total"
+                                data-value="0"
+                            >
+                                Rp0
+                            </h1>
+                            <button
+                                class="icon-btn toggle-eye"
+                                onclick="app.toggleBalance()"
+                            >
+                                <i class="fa-solid fa-eye"></i>
+                            </button>
+                        </div>
+                        <div class="badge profit" id="home-total-badge">
+                            <i class="fa-solid fa-arrow-trend-up"></i> +0.0%
+                            This Month
+                        </div>
+                    </div>
+
+                    <div class="grid-2">
+                        <div
+                            class="card clickable-card"
+                            onclick="app.navigate('investment')"
+                        >
+                            <div class="card-icon">
+                                <i class="fa-solid fa-vault"></i>
+                            </div>
+                            <p class="card-subtitle">Investment</p>
+                            <h3
+                                class="card-title balance-amount"
+                                id="home-investment"
+                                data-value="0"
+                            >
+                                Rp0
+                            </h3>
+                        </div>
+                        <div
+                            class="card clickable-card"
+                            onclick="app.navigate('trading')"
+                        >
+                            <div class="card-icon primary-icon">
+                                <i class="fa-solid fa-chart-line"></i>
+                            </div>
+                            <p class="card-subtitle">Trading</p>
+                            <h3
+                                class="card-title balance-amount"
+                                id="home-trading"
+                                data-value="0"
+                            >
+                                Rp0
+                            </h3>
+                        </div>
+                    </div>
+
+                    <div class="section-title">Quick Summary</div>
+                    <div class="card summary-card">
+                        <div class="summary-item">
+                            <div class="summary-left">
+                                <div class="summary-icon profit-icon">
+                                    <i class="fa-solid fa-arrow-trend-up"></i>
+                                </div>
+                                <p>Today's Profit</p>
+                            </div>
+                            <h4 class="text-profit" id="home-today-profit">
+                                + Rp0
+                            </h4>
+                        </div>
+                        <div class="summary-item">
+                            <div class="summary-left">
+                                <div class="summary-icon neutral-icon">
+                                    <i class="fa-solid fa-repeat"></i>
+                                </div>
+                                <p>Today's Trades</p>
+                            </div>
+                            <h4 id="home-today-trades">0</h4>
+                        </div>
+                        <div class="summary-item">
+                            <div class="summary-left">
+                                <div class="summary-icon primary-icon-sm">
+                                    <i class="fa-solid fa-chart-line"></i>
+                                </div>
+                                <p>Monthly Growth</p>
+                            </div>
+                            <h4 class="text-profit" id="home-monthly-growth">
+                                + 0.0%
+                            </h4>
+                        </div>
+                    </div>
+                </section>
+
+                <section id="view-trading" class="view">
+                    <div class="page-header">
+                        <button class="back-btn" onclick="app.navigate('home')">
+                            <i class="fa-solid fa-arrow-left"></i>
+                        </button>
+                        <h2>Trading <span class="text-accent">Hub</span></h2>
+                    </div>
+
+                    <div class="card balance-card">
+                        <p class="card-subtitle">Trading Balance</p>
+                        <h1
+                            class="balance-amount"
+                            id="trading-total"
+                            data-value="0"
+                        >
+                            Rp0
+                        </h1>
+                    </div>
+
+                    <div class="card summary-card" style="margin-top: 16px">
+                        <div class="summary-item">
+                            <div class="summary-left">
+                                <div class="summary-icon profit-icon">
+                                    <i class="fa-solid fa-calendar-day"></i>
+                                </div>
+                                <p>P/L Hari Ini</p>
+                            </div>
+                            <h4 id="trading-today-pnl">+ Rp0</h4>
+                        </div>
+                        <div class="summary-item">
+                            <div class="summary-left">
+                                <div class="summary-icon primary-icon-sm">
+                                    <i class="fa-solid fa-calendar-week"></i>
+                                </div>
+                                <p>P/L Minggu Ini</p>
+                            </div>
+                            <h4 id="trading-week-pnl">+ Rp0</h4>
+                        </div>
+                    </div>
+
+                    <div class="category-list">
+                        <div
+                            class="card category-card"
+                            onclick="app.openCategory('Forex')"
+                        >
+                            <div class="cat-info">
+                                <div
+                                    class="cat-icon"
+                                    style="
+                                        background: rgba(0, 200, 83, 0.1);
+                                        color: #00c853;
+                                    "
+                                >
+                                    <i
+                                        class="fa-solid fa-money-bill-transfer"
+                                    ></i>
+                                </div>
+                                <div>
+                                    <h3>Forex</h3>
+                                    <p
+                                        class="balance-amount"
+                                        id="cat-list-Forex"
+                                        data-value="0"
+                                    >
+                                        Rp0
+                                    </p>
+                                </div>
+                            </div>
+                            <div class="cat-trend" id="cat-trend-Forex">
+                                +0.0%
+                            </div>
+                        </div>
+
+                        <div
+                            class="card category-card"
+                            onclick="app.openCategory('Crypto')"
+                        >
+                            <div class="cat-info">
+                                <div
+                                    class="cat-icon"
+                                    style="
+                                        background: rgba(255, 215, 0, 0.1);
+                                        color: #ffd700;
+                                    "
+                                >
+                                    <i class="fa-brands fa-bitcoin"></i>
+                                </div>
+                                <div>
+                                    <h3>Crypto</h3>
+                                    <p
+                                        class="balance-amount"
+                                        id="cat-list-Crypto"
+                                        data-value="0"
+                                    >
+                                        Rp0
+                                    </p>
+                                </div>
+                            </div>
+                            <div class="cat-trend" id="cat-trend-Crypto">
+                                +0.0%
+                            </div>
+                        </div>
+
+                        <div
+                            class="card category-card"
+                            onclick="app.openCategory('Stocks')"
+                        >
+                            <div class="cat-info">
+                                <div
+                                    class="cat-icon"
+                                    style="
+                                        background: rgba(255, 61, 0, 0.1);
+                                        color: #ff3d00;
+                                    "
+                                >
+                                    <i class="fa-solid fa-building"></i>
+                                </div>
+                                <div>
+                                    <h3>Stocks</h3>
+                                    <p
+                                        class="balance-amount"
+                                        id="cat-list-Stocks"
+                                        data-value="0"
+                                    >
+                                        Rp0
+                                    </p>
+                                </div>
+                            </div>
+                            <div class="cat-trend" id="cat-trend-Stocks">
+                                +0.0%
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <section id="view-investment" class="view">
+                    <div class="page-header">
+                        <button class="back-btn" onclick="app.navigate('home')">
+                            <i class="fa-solid fa-arrow-left"></i>
+                        </button>
+                        <h2>Investment</h2>
+                    </div>
+
+                    <div class="card balance-card">
+                        <p class="card-subtitle">Total Investment Balance</p>
+                        <h1
+                            class="balance-amount"
+                            id="inv-total"
+                            data-value="0"
+                        >
+                            Rp0
+                        </h1>
+                    </div>
+
+                    <button
+                        class="btn btn-primary"
+                        style="width: 100%; margin-top: 20px"
+                        onclick="app.handleAddAsset()"
+                    >
+                        <i class="fa-solid fa-plus"></i> Tambah Aset
+                    </button>
+
+                    <div class="section-title">Daftar Aset</div>
+                    <div id="investment-list" class="category-list">
+                        <p class="empty-state">
+                            Belum ada aset investment. Tambah aset dulu, misal
+                            "Solana".
+                        </p>
+                    </div>
+                </section>
+
+                <section id="view-investment-asset" class="view">
+                    <div class="page-header">
                     <button class="back-btn" onclick="app.navigate('investment')"><i class="fa-solid fa-arrow-left"></i></button>
                     <h2 id="inv-asset-title">Aset</h2>
-                </div>
-
-                <div class="centered-balance">
-                    <p class="card-subtitle">Saldo Aset</p>
-                    <h1 id="inv-asset-balance" class="balance-amount" data-value="0">Rp0</h1>
-                </div>
-
-                <div class="action-buttons">
-                    <button class="btn btn-primary" onclick="app.handleInvestmentDeposit()"><i class="fa-solid fa-arrow-down"></i> Deposit</button>
-                    <button class="btn btn-secondary" onclick="app.handleInvestmentWithdraw()"><i class="fa-solid fa-arrow-up"></i> Withdraw</button>
-                </div>
-                <button class="btn btn-danger" style="width: 100%; margin-top: 16px;" onclick="app.confirmDeleteAsset()">
-                    <i class="fa-solid fa-trash-can"></i> Hapus Aset Ini
-                </button>
-
-                <div class="section-title" style="margin-top: 32px;">Riwayat Transaksi</div>
-                <div id="investment-history-container" class="history-list">
-                    <p class="empty-state">Belum ada transaksi.</p>
-                </div>
-            </section>
-
-            <section id="view-category" class="view">
-                <div class="page-header">
-                    <button class="back-btn" onclick="app.navigate('trading')"><i class="fa-solid fa-arrow-left"></i></button>
-                    <h2 id="cat-title">Forex</h2>
-                </div>
-
-                <div class="centered-balance">
-                    <p class="card-subtitle">Current Balance</p>
-                    <h1 id="cat-balance" class="balance-amount" data-value="0">Rp0</h1>
-                    <div id="cat-profit" class="badge profit">+0.0%</div>
-                </div>
-
-                <div class="action-buttons">
-                    <button class="btn btn-primary" onclick="app.handleDeposit()"><i class="fa-solid fa-arrow-down"></i> Deposit</button>
-                    <button class="btn btn-secondary" onclick="app.handleWithdraw()"><i class="fa-solid fa-arrow-up"></i> Withdraw</button>
-                </div>
-                <button class="btn btn-primary" style="width: 100%; margin-top: 16px; background: var(--surface-color); color: var(--primary-color); border: 1px solid var(--primary-color);" onclick="app.handleAddTrade()">
-                    <i class="fa-solid fa-plus"></i> Tambah Posisi Trade
-                </button>
-
-                <div class="section-title" style="margin-top: 32px;">Trading History</div>
-                <div id="history-container" class="history-list">
-                    <p class="empty-state">Belum ada transaksi di kategori ini.</p>
-                </div>
-            </section>
-
-            <section id="view-stats" class="view">
-                <div class="page-header">
-                    <button class="back-btn" onclick="app.navigate('home')"><i class="fa-solid fa-arrow-left"></i></button>
-                    <h2>Statistics</h2>
-                </div>
-
-                <div class="chart-placeholder card">
-                    <div class="chart-mockup line-chart"></div>
-                    <p>Monthly Growth Overview</p>
-                </div>
-
-                <div class="grid-2">
-                    <div class="card stat-card">
-                        <p>Total Profit</p>
-                        <h3 class="text-profit balance-amount" id="stat-profit" data-value="0">Rp0</h3>
-                    </div>
-                    <div class="card stat-card">
-                        <p>Total Loss</p>
-                        <h3 class="text-loss balance-amount" id="stat-loss" data-value="0">Rp0</h3>
-                    </div>
-                    <div class="card stat-card">
-                        <p>Win Rate</p>
-                        <h3 id="stat-winrate">0%</h3>
-                    </div>
-                    <div class="card stat-card">
-                        <p>Total Trades</p>
-                        <h3 id="stat-trades">0</h3>
-                    </div>
-                </div>
-
-                <div class="chart-placeholder card" style="margin-top: 16px;">
-                    <div class="chart-mockup pie-chart" id="asset-pie"></div>
-                    <p>Asset Allocation (Trading)</p>
-                    <div class="legend-list" id="asset-legend"></div>
-                </div>
-            </section>
-
-            <section id="view-settings" class="view">
-                <div class="page-header">
-                    <button class="back-btn" onclick="app.navigate('home')"><i class="fa-solid fa-arrow-left"></i></button>
-                    <h2>Settings</h2>
-                </div>
-
-                <div class="card settings-card">
-                    <div class="settings-row">
-                        <div>
-                            <h4>Dark Mode</h4>
-                            <p>Tampilan gelap untuk kenyamanan mata</p>
-                        </div>
-                        <label class="switch">
-                            <input type="checkbox" id="setting-theme" checked onchange="app.toggleTheme()">
-                            <span class="switch-slider"></span>
-                        </label>
-                    </div>
-                    <div class="settings-row">
-                        <div>
-                            <h4>Sembunyikan Saldo</h4>
-                            <p>Sembunyikan semua angka saldo secara default</p>
-                        </div>
-                        <label class="switch">
-                            <input type="checkbox" id="setting-hide-balance" onchange="app.toggleBalance()">
-                            <span class="switch-slider"></span>
-                        </label>
-                    </div>
-                </div>
-
-                <div class="section-title">Data</div>
-                <div class="card">
-                    <button class="btn btn-danger" style="width: 100%;" onclick="app.confirmResetAll()">
-                        <i class="fa-solid fa-trash-can"></i> Reset Semua Data
+                    <button class="back-btn" style="margin-left:auto;" onclick="app.handleBalanceCorrection()">
+                        <i class="fa-solid fa-ellipsis-vertical"></i>
                     </button>
                 </div>
-            </section>
 
-            <section id="view-about" class="view">
-                <div class="page-header">
-                    <button class="back-btn" onclick="app.navigate('home')"><i class="fa-solid fa-arrow-left"></i></button>
-                    <h2>About</h2>
-                </div>
+                    <div class="centered-balance">
+                        <p class="card-subtitle">Saldo Exchange (Total)</p>
+                        <h1
+                            id="inv-asset-balance"
+                            class="balance-amount"
+                            data-value="0"
+                        >
+                            Rp0
+                        </h1>
+                    </div>
 
-                <div class="card" style="text-align: center; padding: 32px 24px;">
-                    <div class="about-logo"><i class="fa-solid fa-bolt"></i></div>
-                    <h3 style="margin: 16px 0 4px;">Trade<span class="text-accent">Book</span></h3>
-                    <p style="color: var(--text-secondary); font-size: 0.9rem;">Versi <span class="text-accent" style="font-weight:700;">1.0.0</span> (Simulasi)</p>
-                </div>
-                <div class="card" style="margin-top: 16px;">
-                    <p style="color: var(--text-secondary); line-height: 1.6; font-size: 0.9rem;">
-                        TradeBook adalah dashboard simulasi untuk mencatat deposit, withdraw, dan posisi trading kamu di Forex, Crypto, dan Stocks. Semua data hanya tersimpan di sesi ini — refresh halaman akan mengembalikan semuanya ke nol.
-                    </p>
-                </div>
-            </section>
+                    <div class="card" style="margin: 0 0 24px;">
+                        <p class="card-subtitle" style="text-align:center;">Siklus Nabung (30 Hari)</p>
+                        <div class="cycle-ring" id="inv-cycle-ring" style="--pct:0;">
+                            <span class="cycle-ring-text" id="inv-cycle-pct">0%</span>
+                        </div>
+                        <p style="text-align:center; font-weight:700;" id="inv-cycle-amount">Rp0 / Rp0</p>
+                        <p style="text-align:center; color:var(--text-secondary); font-size:0.85rem; margin-top:4px;" id="inv-cycle-day">Hari ke-1 dari 30</p>
 
+                        <div class="pending-row" style="margin-top:20px;">
+                            <span>Belum Ditop Up</span>
+                            <span class="text-accent" id="inv-pending-amount" style="font-weight:800;">Rp0</span>
+                        </div>
+
+                        <button class="btn btn-primary" style="width:100%; margin-top:16px;" onclick="app.handleTopUp()">
+                            <i class="fa-solid fa-arrow-up-from-bracket"></i> Top Up ke Exchange
+                        </button>
+                        <button class="btn btn-secondary" style="width:100%; margin-top:10px;" onclick="app.handleCycleSettings()">
+                            <i class="fa-solid fa-gear"></i> Atur Target Siklus
+                        </button>
+                    </div>
+
+                    <div class="action-buttons">
+                        <button
+                            class="btn btn-primary"
+                            onclick="app.handleInvestmentDeposit()"
+                        >
+                            <i class="fa-solid fa-arrow-down"></i> Deposit
+                        </button>
+                        <button
+                            class="btn btn-secondary"
+                            onclick="app.handleInvestmentWithdraw()"
+                        >
+                            <i class="fa-solid fa-arrow-up"></i> Withdraw
+                        </button>
+                    </div>
+                    <button
+                        class="btn btn-danger"
+                        style="width: 100%; margin-top: 16px"
+                        onclick="app.confirmDeleteAsset()"
+                    >
+                        <i class="fa-solid fa-trash-can"></i> Hapus Aset Ini
+                    </button>
+
+                    <div class="section-title" style="margin-top: 32px">
+                        Riwayat Transaksi
+                    </div>
+                    <div id="investment-history-container" class="history-list">
+                        <p class="empty-state">Belum ada transaksi.</p>
+                    </div>
+                </section>
+
+                <section id="view-category" class="view">
+                    <div class="page-header">
+                        <button
+                            class="back-btn"
+                            onclick="app.navigate('trading')"
+                        >
+                            <i class="fa-solid fa-arrow-left"></i>
+                        </button>
+                        <h2 id="cat-title">Forex</h2>
+                    </div>
+
+                    <div class="centered-balance">
+                        <p class="card-subtitle">Current Balance</p>
+                        <h1
+                            id="cat-balance"
+                            class="balance-amount"
+                            data-value="0"
+                        >
+                            Rp0
+                        </h1>
+                        <div id="cat-profit" class="badge profit">+0.0%</div>
+                    </div>
+
+                    <div class="action-buttons">
+                        <button
+                            class="btn btn-primary"
+                            onclick="app.handleDeposit()"
+                        >
+                            <i class="fa-solid fa-arrow-down"></i> Deposit
+                        </button>
+                        <button
+                            class="btn btn-secondary"
+                            onclick="app.handleWithdraw()"
+                        >
+                            <i class="fa-solid fa-arrow-up"></i> Withdraw
+                        </button>
+                    </div>
+                    <button
+                        class="btn btn-primary"
+                        style="
+                            width: 100%;
+                            margin-top: 16px;
+                            background: var(--surface-color);
+                            color: var(--primary-color);
+                            border: 1px solid var(--primary-color);
+                        "
+                        onclick="app.handleAddTrade()"
+                    >
+                        <i class="fa-solid fa-plus"></i> Tambah Posisi Trade
+                    </button>
+
+                    <div class="section-title" style="margin-top: 32px">
+                        Trading History
+                    </div>
+                    <div id="history-container" class="history-list">
+                        <p class="empty-state">
+                            Belum ada transaksi di kategori ini.
+                        </p>
+                    </div>
+                </section>
+
+                <section id="view-stats" class="view">
+                    <div class="page-header">
+                        <button class="back-btn" onclick="app.navigate('home')">
+                            <i class="fa-solid fa-arrow-left"></i>
+                        </button>
+                        <h2>Statistics</h2>
+                    </div>
+
+                    <div class="chart-placeholder card">
+                        <div class="chart-mockup line-chart"></div>
+                        <p>Monthly Growth Overview</p>
+                    </div>
+
+                    <div class="grid-2">
+                        <div class="card stat-card">
+                            <p>Total Profit</p>
+                            <h3
+                                class="text-profit balance-amount"
+                                id="stat-profit"
+                                data-value="0"
+                            >
+                                Rp0
+                            </h3>
+                        </div>
+                        <div class="card stat-card">
+                            <p>Total Loss</p>
+                            <h3
+                                class="text-loss balance-amount"
+                                id="stat-loss"
+                                data-value="0"
+                            >
+                                Rp0
+                            </h3>
+                        </div>
+                        <div class="card stat-card">
+                            <p>Win Rate</p>
+                            <h3 id="stat-winrate">0%</h3>
+                        </div>
+                        <div class="card stat-card">
+                            <p>Total Trades</p>
+                            <h3 id="stat-trades">0</h3>
+                        </div>
+                    </div>
+
+                    <div
+                        class="chart-placeholder card"
+                        style="margin-top: 16px"
+                    >
+                        <div
+                            class="chart-mockup pie-chart"
+                            id="asset-pie"
+                        ></div>
+                        <p>Asset Allocation (Trading)</p>
+                        <div class="legend-list" id="asset-legend"></div>
+                    </div>
+                </section>
+
+                <section id="view-settings" class="view">
+                    <div class="page-header">
+                        <button class="back-btn" onclick="app.navigate('home')">
+                            <i class="fa-solid fa-arrow-left"></i>
+                        </button>
+                        <h2>Settings</h2>
+                    </div>
+
+                    <div class="card settings-card">
+                        <div class="settings-row">
+                            <div>
+                                <h4>Dark Mode</h4>
+                                <p>Tampilan gelap untuk kenyamanan mata</p>
+                            </div>
+                            <label class="switch">
+                                <input
+                                    type="checkbox"
+                                    id="setting-theme"
+                                    checked
+                                    onchange="app.toggleTheme()"
+                                />
+                                <span class="switch-slider"></span>
+                            </label>
+                        </div>
+                        <div class="settings-row">
+                            <div>
+                                <h4>Sembunyikan Saldo</h4>
+                                <p>
+                                    Sembunyikan semua angka saldo secara default
+                                </p>
+                            </div>
+                            <label class="switch">
+                                <input
+                                    type="checkbox"
+                                    id="setting-hide-balance"
+                                    onchange="app.toggleBalance()"
+                                />
+                                <span class="switch-slider"></span>
+                            </label>
+                        </div>
+                    </div>
+
+                    <div class="section-title">Data</div>
+                    <div class="card">
+                        <button
+                            class="btn btn-danger"
+                            style="width: 100%"
+                            onclick="app.confirmResetAll()"
+                        >
+                            <i class="fa-solid fa-trash-can"></i> Reset Semua
+                            Data
+                        </button>
+                    </div>
+                </section>
+
+                <section id="view-about" class="view">
+                    <div class="page-header">
+                        <button class="back-btn" onclick="app.navigate('home')">
+                            <i class="fa-solid fa-arrow-left"></i>
+                        </button>
+                        <h2>About</h2>
+                    </div>
+
+                    <div
+                        class="card"
+                        style="text-align: center; padding: 32px 24px"
+                    >
+                        <div class="about-logo">
+                            <i class="fa-solid fa-bolt"></i>
+                        </div>
+                        <h3 style="margin: 16px 0 4px">
+                            Trade<span class="text-accent">Book</span>
+                        </h3>
+                        <p
+                            style="
+                                color: var(--text-secondary);
+                                font-size: 0.9rem;
+                            "
+                        >
+                            Versi
+                            <span class="text-accent" style="font-weight: 700"
+                                >1.0.0</span
+                            >
+                            (Simulasi)
+                        </p>
+                    </div>
+                    <div class="card" style="margin-top: 16px">
+                        <p
+                            style="
+                                color: var(--text-secondary);
+                                line-height: 1.6;
+                                font-size: 0.9rem;
+                            "
+                        >
+                            TradeBook adalah dashboard simulasi untuk mencatat
+                            deposit, withdraw, dan posisi trading kamu di Forex,
+                            Crypto, dan Stocks. Semua data hanya tersimpan di
+                            sesi ini — refresh halaman akan mengembalikan
+                            semuanya ke nol.
+                        </p>
+                    </div>
+                </section>
+            </div>
+        </main>
+
+        <!-- Bottom Sheet (replaces prompt()/alert()) -->
+        <div
+            class="sheet-overlay"
+            id="sheet-overlay"
+            onclick="app.closeSheet()"
+        ></div>
+        <div class="bottom-sheet" id="bottom-sheet">
+            <div class="sheet-handle"></div>
+            <h3 class="sheet-title" id="sheet-title">Title</h3>
+            <div class="sheet-body" id="sheet-body"></div>
+            <p class="sheet-error" id="sheet-error"></p>
+            <div class="sheet-actions">
+                <button class="btn btn-secondary" onclick="app.closeSheet()">
+                    Batal
+                </button>
+                <button class="btn btn-primary" id="sheet-confirm-btn">
+                    Konfirmasi
+                </button>
+            </div>
         </div>
-    </main>
 
-    <!-- Bottom Sheet (replaces prompt()/alert()) -->
-    <div class="sheet-overlay" id="sheet-overlay" onclick="app.closeSheet()"></div>
-    <div class="bottom-sheet" id="bottom-sheet">
-        <div class="sheet-handle"></div>
-        <h3 class="sheet-title" id="sheet-title">Title</h3>
-        <div class="sheet-body" id="sheet-body"></div>
-        <p class="sheet-error" id="sheet-error"></p>
-        <div class="sheet-actions">
-            <button class="btn btn-secondary" onclick="app.closeSheet()">Batal</button>
-            <button class="btn btn-primary" id="sheet-confirm-btn">Konfirmasi</button>
-        </div>
-    </div>
+        <!-- Toast (replaces alert()) -->
+        <div class="toast" id="toast"></div>
 
-    <!-- Toast (replaces alert()) -->
-    <div class="toast" id="toast"></div>
-
-    <script src="script.js"></script>
-    <script>
-      if ("serviceWorker" in navigator) {
-        window.addEventListener("load", () => {
-          navigator.serviceWorker
-            .register("./sw.js")
-            .catch(err => console.log("SW registration failed:", err));
-        });
-      }
-    </script>
-</body>
+        <script src="script.js"></script>
+        <script>
+            if ("serviceWorker" in navigator) {
+                window.addEventListener("load", () => {
+                    navigator.serviceWorker
+                        .register("./sw.js")
+                        .catch(err =>
+                            console.log("SW registration failed:", err)
+                        );
+                });
+            }
+        </script>
+    </body>
 </html>
