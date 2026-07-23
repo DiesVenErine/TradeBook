@@ -1,15 +1,20 @@
 /* =========================================================
    TRADEBOOK - Core JavaScript Application Logic
+   (Forex-only Trading Hub + Journal Risk Guard terintegrasi)
 ========================================================= */
 
 const state = {
     investment: { assets: {}, currentAsset: null },
-    categories: {
-        Forex: { balance: 0, deposited: 0, pnlTotal: 0, history: [] },
-        Crypto: { balance: 0, deposited: 0, pnlTotal: 0, history: [] },
-        Stocks: { balance: 0, deposited: 0, pnlTotal: 0, history: [] }
-    },
-    currentCategory: null
+    forex: { balance: 0, deposited: 0, pnlTotal: 0, history: [] },
+    journal: {
+        exchangeRate: 15800,
+        maxLoss: 50,
+        peakBalance: 0,
+        currentBalance: 0,
+        peakDate: null,
+        lockdownActive: false,
+        trades: []
+    }
 };
 
 const app = {
@@ -17,7 +22,7 @@ const app = {
     currentTheme: "dark",
 
     // ============================================
-    // PERSISTENCE — fix untuk "data reset lagi pas reload"
+    // PERSISTENCE
     // ============================================
     saveState() {
         try {
@@ -35,31 +40,55 @@ const app = {
 
             if (saved.investment && saved.investment.assets) {
                 state.investment.assets = saved.investment.assets;
-                // Backfill: aset lama yang belum punya data siklus / tipe
                 Object.values(state.investment.assets).forEach(asset => {
                     if (!asset.type) asset.type = "invest";
                     if (asset.type === "invest") {
-                        if (!asset.cycleStart) asset.cycleStart = this.todayISO();
-                        if (asset.cycleAmount === undefined) asset.cycleAmount = 0;
+                        if (!asset.cycleStart)
+                            asset.cycleStart = this.todayISO();
+                        if (asset.cycleAmount === undefined)
+                            asset.cycleAmount = 0;
                         if (asset.cycleTarget === undefined)
                             asset.cycleTarget = 150000;
-                        if (asset.minDeposit === undefined) asset.minDeposit = 5000;
-                        // Migrasi: saldo lama dianggap sudah di-exchange semua
+                        if (asset.minDeposit === undefined)
+                            asset.minDeposit = 5000;
                         if (asset.exchangeTotal === undefined)
                             asset.exchangeTotal = asset.balance || 0;
                         if (asset.pendingAmount === undefined)
                             asset.pendingAmount = 0;
                         if (!asset.topupLog) asset.topupLog = [];
                     } else {
-                        if (asset.minDeposit === undefined) asset.minDeposit = 3000;
+                        if (asset.minDeposit === undefined)
+                            asset.minDeposit = 3000;
                     }
                 });
             }
-            if (saved.categories) {
-                Object.keys(state.categories).forEach(name => {
-                    if (saved.categories[name])
-                        state.categories[name] = saved.categories[name];
-                });
+
+            // Forex: pakai data baru kalau ada, atau migrasi dari struktur lama (categories.Forex)
+            if (saved.forex) {
+                state.forex = Object.assign(
+                    { balance: 0, deposited: 0, pnlTotal: 0, history: [] },
+                    saved.forex
+                );
+            } else if (saved.categories && saved.categories.Forex) {
+                state.forex = Object.assign(
+                    { balance: 0, deposited: 0, pnlTotal: 0, history: [] },
+                    saved.categories.Forex
+                );
+            }
+
+            if (saved.journal) {
+                state.journal = Object.assign(
+                    {
+                        exchangeRate: 15800,
+                        maxLoss: 50,
+                        peakBalance: 0,
+                        currentBalance: 0,
+                        peakDate: null,
+                        lockdownActive: false,
+                        trades: []
+                    },
+                    saved.journal
+                );
             }
         } catch (e) {
             console.error("Gagal memuat data tersimpan:", e);
@@ -73,9 +102,10 @@ const app = {
         this.renderTradingHub();
         this.renderStats();
         this.renderInvestmentView();
+        this.renderJournal();
         this.attachRipples();
         history.replaceState({ view: "home" }, "", "#home");
-        window.addEventListener("popstate", (e) => {
+        window.addEventListener("popstate", e => {
             const sheet = document.getElementById("bottom-sheet");
             if (sheet.classList.contains("open")) {
                 this.closeSheet();
@@ -88,7 +118,6 @@ const app = {
         console.log("TradeBook App Initialized! 🚀");
     },
 
-    // Ripple effect untuk semua .clickable-card (Investment & Trading di home)
     attachRipples() {
         document.querySelectorAll(".clickable-card").forEach(card => {
             card.addEventListener("pointerdown", e => {
@@ -171,11 +200,9 @@ const app = {
     weeklyTradePnl() {
         const monday = this.getMonday(new Date()).getTime();
         let total = 0;
-        Object.values(state.categories).forEach(cat => {
-            cat.history.forEach(t => {
-                if (t.kind === "trade" && t.timestamp >= monday)
-                    total += t.pnlValue;
-            });
+        state.forex.history.forEach(t => {
+            if (t.kind === "trade" && t.timestamp >= monday)
+                total += t.pnlValue;
         });
         return total;
     },
@@ -201,16 +228,13 @@ const app = {
             el.textContent = "Rp ••••••••";
             return;
         }
-
         if (oldValue === newValue) {
             el.textContent = this.formatCurrency(newValue);
             return;
         }
-
         this.animateValue(el, oldValue, newValue, 500);
     },
 
-    // Animasi hitung naik/turun saat saldo berubah (ease-out, 500ms)
     animateValue(el, start, end, duration) {
         const startTime = performance.now();
         const step = now => {
@@ -218,11 +242,8 @@ const app = {
             const eased = 1 - Math.pow(1 - progress, 3);
             const current = start + (end - start) * eased;
             el.textContent = this.formatCurrency(Math.round(current));
-            if (progress < 1) {
-                requestAnimationFrame(step);
-            } else {
-                el.textContent = this.formatCurrency(end);
-            }
+            if (progress < 1) requestAnimationFrame(step);
+            else el.textContent = this.formatCurrency(end);
         };
         requestAnimationFrame(step);
     },
@@ -239,7 +260,6 @@ const app = {
         }
         this.formatAllBalances();
         this.renderInvestmentList();
-
         const settingToggle = document.getElementById("setting-hide-balance");
         if (settingToggle) settingToggle.checked = this.isBalanceHidden;
     },
@@ -269,13 +289,10 @@ const app = {
     },
 
     // ============================================
-    // DERIVED TOTALS
+    // DERIVED TOTALS (Forex-only)
     // ============================================
     tradingTotal() {
-        return Object.values(state.categories).reduce(
-            (sum, c) => sum + c.balance,
-            0
-        );
+        return state.forex.balance;
     },
 
     totalBalance() {
@@ -290,14 +307,8 @@ const app = {
     },
 
     overallTrendPercent() {
-        const deposited = Object.values(state.categories).reduce(
-            (s, c) => s + c.deposited,
-            0
-        );
-        const pnl = Object.values(state.categories).reduce(
-            (s, c) => s + c.pnlTotal,
-            0
-        );
+        const deposited = state.forex.deposited;
+        const pnl = state.forex.pnlTotal;
         return deposited > 0 ? (pnl / deposited) * 100 : 0;
     },
 
@@ -326,13 +337,11 @@ const app = {
         const today = this.todayKey();
         let todayPnl = 0;
         let todayTrades = 0;
-        Object.values(state.categories).forEach(cat => {
-            cat.history.forEach(t => {
-                if (t.kind === "trade" && t.date === today) {
-                    todayPnl += t.pnlValue;
-                    todayTrades += 1;
-                }
-            });
+        state.forex.history.forEach(t => {
+            if (t.kind === "trade" && t.date === today) {
+                todayPnl += t.pnlValue;
+                todayTrades += 1;
+            }
         });
 
         const profitEl = document.getElementById("home-today-profit");
@@ -348,34 +357,18 @@ const app = {
     },
 
     // ============================================
-    // RENDER — TRADING
+    // RENDER — TRADING HUB (Forex + Risk Guard + Journal)
     // ============================================
     renderTradingHub() {
         this.setBalance(
             document.getElementById("trading-total"),
             this.tradingTotal()
         );
-        Object.keys(state.categories).forEach(name => {
-            const cat = state.categories[name];
-            this.setBalance(
-                document.getElementById(`cat-list-${name}`),
-                cat.balance
-            );
-            const trend =
-                cat.deposited > 0 ? (cat.pnlTotal / cat.deposited) * 100 : 0;
-            const trendEl = document.getElementById(`cat-trend-${name}`);
-            trendEl.textContent = `${trend >= 0 ? "+" : ""}${trend.toFixed(1)}%`;
-            trendEl.className =
-                "cat-trend " + (trend >= 0 ? "text-profit" : "text-loss");
-        });
 
         const today = this.todayKey();
         let todayPnl = 0;
-        Object.values(state.categories).forEach(cat => {
-            cat.history.forEach(t => {
-                if (t.kind === "trade" && t.date === today)
-                    todayPnl += t.pnlValue;
-            });
+        state.forex.history.forEach(t => {
+            if (t.kind === "trade" && t.date === today) todayPnl += t.pnlValue;
         });
         const todayEl = document.getElementById("trading-today-pnl");
         todayEl.textContent =
@@ -389,6 +382,8 @@ const app = {
             (weekPnl >= 0 ? "+ " : "- ") +
             this.formatCurrency(Math.abs(weekPnl));
         weekEl.className = weekPnl >= 0 ? "text-profit" : "text-loss";
+
+        this.renderHistory();
     },
 
     renderStats() {
@@ -396,17 +391,15 @@ const app = {
             loss = 0,
             wins = 0,
             trades = 0;
-        Object.values(state.categories).forEach(cat => {
-            cat.history.forEach(t => {
-                if (t.kind !== "trade") return;
-                trades += 1;
-                if (t.pnlValue >= 0) {
-                    profit += t.pnlValue;
-                    wins += 1;
-                } else {
-                    loss += Math.abs(t.pnlValue);
-                }
-            });
+        state.forex.history.forEach(t => {
+            if (t.kind !== "trade") return;
+            trades += 1;
+            if (t.pnlValue >= 0) {
+                profit += t.pnlValue;
+                wins += 1;
+            } else {
+                loss += Math.abs(t.pnlValue);
+            }
         });
 
         this.setBalance(document.getElementById("stat-profit"), profit);
@@ -414,71 +407,15 @@ const app = {
         document.getElementById("stat-winrate").textContent =
             trades > 0 ? `${Math.round((wins / trades) * 100)}%` : "0%";
         document.getElementById("stat-trades").textContent = trades;
-        this.renderAssetAllocation();
-    },
-
-    renderAssetAllocation() {
-        const colors = {
-            Forex: "#00C853",
-            Crypto: "#FFD700",
-            Stocks: "#FF3D00"
-        };
-        const total = this.tradingTotal();
-        const pie = document.getElementById("asset-pie");
-        const legend = document.getElementById("asset-legend");
-        legend.innerHTML = "";
-
-        if (total <= 0) {
-            pie.style.background = "var(--border-color)";
-            legend.innerHTML =
-                '<p class="empty-state">Belum ada saldo trading untuk ditampilkan.</p>';
-            return;
-        }
-
-        let cursor = 0;
-        const stops = [];
-        Object.keys(state.categories).forEach(name => {
-            const value = Math.max(state.categories[name].balance, 0);
-            const pct = (value / total) * 100;
-            if (pct > 0)
-                stops.push(`${colors[name]} ${cursor}% ${cursor + pct}%`);
-            cursor += pct;
-
-            const row = document.createElement("div");
-            row.className = "legend-row";
-            row.innerHTML = `<span class="legend-dot" style="background:${colors[name]}"></span> ${name} <span class="legend-pct">${pct.toFixed(1)}%</span>`;
-            legend.appendChild(row);
-        });
-
-        pie.style.background = `conic-gradient(${stops.join(", ")})`;
-    },
-
-    openCategory(name) {
-        state.currentCategory = name;
-        this.renderCategory();
-        this.navigate("category");
-    },
-
-    renderCategory() {
-        const name = state.currentCategory;
-        const cat = state.categories[name];
-        document.getElementById("cat-title").textContent = name;
-        this.setBalance(document.getElementById("cat-balance"), cat.balance);
-        const trend =
-            cat.deposited > 0 ? (cat.pnlTotal / cat.deposited) * 100 : 0;
-        const profitEl = document.getElementById("cat-profit");
-        profitEl.textContent = `${trend >= 0 ? "+" : ""}${trend.toFixed(1)}%`;
-        profitEl.className = "badge " + (trend >= 0 ? "profit" : "loss");
-        this.renderHistory();
     },
 
     renderHistory() {
         const container = document.getElementById("history-container");
-        const cat = state.categories[state.currentCategory];
+        const cat = state.forex;
         container.innerHTML = "";
         if (cat.history.length === 0) {
             container.innerHTML =
-                '<p class="empty-state">Belum ada transaksi di kategori ini.</p>';
+                '<p class="empty-state">Belum ada transaksi.</p>';
             return;
         }
         const sorted = [...cat.history].sort(
@@ -504,8 +441,184 @@ const app = {
         });
     },
 
+    handleDeposit() {
+        this.openSheet({
+            title: "Deposit",
+            fields: [
+                {
+                    id: "amount",
+                    label: "Jumlah (Rp)",
+                    type: "text",
+                    inputmode: "numeric",
+                    placeholder: ""
+                }
+            ],
+            confirmLabel: "Deposit",
+            onConfirm: values => {
+                const amount = this.parseAmount(values.amount);
+                if (amount === null || amount <= 0)
+                    return "Masukkan jumlah yang valid.";
+
+                const cat = state.forex;
+                cat.balance += amount;
+                cat.deposited += amount;
+                cat.history.push(
+                    this.makeEntry(
+                        "deposit",
+                        "Deposit",
+                        "DEPOSIT",
+                        "badge-buy",
+                        amount
+                    )
+                );
+
+                this.saveState();
+                this.renderTradingHub();
+                this.renderHome();
+                this.toast("Deposit berhasil ditambahkan 🚀");
+                return null;
+            }
+        });
+    },
+
+    handleWithdraw() {
+        this.openSheet({
+            title: "Withdraw",
+            fields: [
+                {
+                    id: "amount",
+                    label: "Jumlah (Rp)",
+                    type: "text",
+                    inputmode: "numeric",
+                    placeholder: ""
+                }
+            ],
+            confirmLabel: "Withdraw",
+            onConfirm: values => {
+                const amount = this.parseAmount(values.amount);
+                if (amount === null || amount <= 0)
+                    return "Masukkan jumlah yang valid.";
+
+                const cat = state.forex;
+                if (amount > cat.balance) return "Saldo kamu tidak cukup.";
+
+                cat.balance -= amount;
+                cat.history.push(
+                    this.makeEntry(
+                        "withdraw",
+                        "Withdraw",
+                        "WITHDRAW",
+                        "badge-sell",
+                        -amount
+                    )
+                );
+
+                this.saveState();
+                this.renderTradingHub();
+                this.renderHome();
+                this.toast("Penarikan berhasil diproses 💸");
+                return null;
+            }
+        });
+    },
+
+    makeEntry(kind, label, badgeText, badgeClass, pnlValue) {
+        const now = new Date();
+        return {
+            kind,
+            label,
+            badgeText,
+            badgeClass,
+            pnlValue,
+            date: this.todayKey(),
+            time:
+                now.getHours() +
+                ":" +
+                String(now.getMinutes()).padStart(2, "0"),
+            timestamp: now.getTime()
+        };
+    },
+
+    confirmDeleteEntry(timestamp) {
+        this.openSheet({
+            title: "Hapus Transaksi?",
+            message:
+                "Transaksi ini akan dihapus permanen dan saldo akan disesuaikan.",
+            confirmLabel: "Hapus",
+            danger: true,
+            onConfirm: () => {
+                this.removeHistoryEntry(timestamp);
+                return null;
+            }
+        });
+    },
+
+    removeHistoryEntry(timestamp) {
+        const cat = state.forex;
+        const idx = cat.history.findIndex(e => e.timestamp === timestamp);
+        if (idx === -1) return;
+
+        const entry = cat.history[idx];
+        if (entry.kind === "deposit") {
+            cat.balance -= entry.pnlValue;
+            cat.deposited -= entry.pnlValue;
+        } else if (entry.kind === "withdraw") {
+            cat.balance -= entry.pnlValue;
+        } else if (entry.kind === "trade") {
+            cat.balance -= entry.pnlValue;
+            cat.pnlTotal -= entry.pnlValue;
+        }
+
+        cat.history.splice(idx, 1);
+        this.saveState();
+        this.renderTradingHub();
+        this.renderHome();
+        this.renderStats();
+        this.toast("Transaksi dihapus.");
+    },
+
+    confirmResetAll() {
+        this.openSheet({
+            title: "Reset Semua Data?",
+            message:
+                "Semua saldo, deposit, withdraw, aset investment, dan riwayat trading akan dihapus permanen. Tindakan ini tidak bisa dibatalkan.",
+            confirmLabel: "Reset Semua",
+            danger: true,
+            onConfirm: () => {
+                this.resetAllData();
+                return null;
+            }
+        });
+    },
+
+    resetAllData() {
+        state.investment = { assets: {}, currentAsset: null };
+        state.forex = { balance: 0, deposited: 0, pnlTotal: 0, history: [] };
+        state.journal = {
+            exchangeRate: 15800,
+            maxLoss: 50,
+            peakBalance: 0,
+            currentBalance: 0,
+            peakDate: null,
+            lockdownActive: false,
+            trades: []
+        };
+
+        this.saveState();
+        document.getElementById("sidebar").classList.remove("open");
+        document.getElementById("overlay").classList.remove("active");
+
+        this.renderHome();
+        this.renderTradingHub();
+        this.renderStats();
+        this.renderInvestmentView();
+        this.renderJournal();
+        this.navigate("home");
+        this.toast("Semua data berhasil direset.");
+    },
+
     // ============================================
-    // RENDER — INVESTMENT (multi-aset, kayak Solana dll)
+    // RENDER — INVESTMENT (tidak berubah)
     // ============================================
     renderInvestmentView() {
         this.setBalance(
@@ -552,7 +665,7 @@ const app = {
                     <i class="fa-solid fa-trash"></i>
                 </button>
             `;
-            card.querySelector(".hist-delete").onclick = (e) => {
+            card.querySelector(".hist-delete").onclick = e => {
                 e.stopPropagation();
                 this.confirmDeleteAssetFromList(safeName);
             };
@@ -586,7 +699,6 @@ const app = {
                     return "Aset dengan nama ini sudah ada.";
 
                 const isSavings = values.type === "Simpanan";
-
                 state.investment.assets[name] = isSavings
                     ? {
                           type: "savings",
@@ -632,12 +744,21 @@ const app = {
         }
 
         const isSavings = asset.type === "savings";
-        document.getElementById("inv-invest-section").style.display = isSavings ? "none" : "block";
-        document.getElementById("inv-savings-section").style.display = isSavings ? "block" : "none";
-        document.getElementById("inv-deposit-label").textContent = isSavings ? "Nabung" : "Deposit";
-        document.getElementById("inv-withdraw-label").textContent = isSavings ? "Pakai" : "Withdraw";
-        document.getElementById("inv-balance-label").textContent = isSavings ? "Saldo Celengan" : "Saldo Exchange (Total)";
-
+        document.getElementById("inv-invest-section").style.display = isSavings
+            ? "none"
+            : "block";
+        document.getElementById("inv-savings-section").style.display = isSavings
+            ? "block"
+            : "none";
+        document.getElementById("inv-deposit-label").textContent = isSavings
+            ? "Nabung"
+            : "Deposit";
+        document.getElementById("inv-withdraw-label").textContent = isSavings
+            ? "Pakai"
+            : "Withdraw";
+        document.getElementById("inv-balance-label").textContent = isSavings
+            ? "Saldo Celengan"
+            : "Saldo Exchange (Total)";
         document.getElementById("inv-asset-title").textContent = name;
 
         if (isSavings) {
@@ -664,7 +785,10 @@ const app = {
             document.getElementById("inv-cycle-pct").textContent = pct + "%";
             document.getElementById("inv-cycle-amount").textContent =
                 `${this.formatCurrency(asset.cycleAmount)} / ${this.formatCurrency(asset.cycleTarget)}`;
-            const daysSince = Math.min(this.getDaysSince(asset.cycleStart) + 1, 30);
+            const daysSince = Math.min(
+                this.getDaysSince(asset.cycleStart) + 1,
+                30
+            );
             document.getElementById("inv-cycle-day").textContent =
                 `Hari ke-${daysSince} dari 30`;
             document.getElementById("inv-pending-amount").textContent =
@@ -709,7 +833,8 @@ const app = {
     },
 
     handleInvestmentDeposit() {
-        const currentAsset = state.investment.assets[state.investment.currentAsset];
+        const currentAsset =
+            state.investment.assets[state.investment.currentAsset];
         const isSavings = currentAsset && currentAsset.type === "savings";
         this.openSheet({
             title: isSavings ? "Nabung" : "Deposit",
@@ -730,7 +855,6 @@ const app = {
 
                 const asset =
                     state.investment.assets[state.investment.currentAsset];
-
                 if (asset.type === "savings") {
                     asset.balance += amount;
                     asset.deposited += amount;
@@ -775,7 +899,8 @@ const app = {
     },
 
     handleInvestmentWithdraw() {
-        const currentAsset = state.investment.assets[state.investment.currentAsset];
+        const currentAsset =
+            state.investment.assets[state.investment.currentAsset];
         const isSavings = currentAsset && currentAsset.type === "savings";
         this.openSheet({
             title: isSavings ? "Pakai Saldo" : "Withdraw",
@@ -796,7 +921,6 @@ const app = {
 
                 const asset =
                     state.investment.assets[state.investment.currentAsset];
-
                 if (asset.type === "savings") {
                     if (amount > asset.balance)
                         return "Saldo celengan tidak cukup.";
@@ -877,7 +1001,7 @@ const app = {
         });
     },
 
-handleSavingsSettings() {
+    handleSavingsSettings() {
         const asset = state.investment.assets[state.investment.currentAsset];
         if (!asset) return;
         const input = document.getElementById("inv-savings-min");
@@ -895,23 +1019,29 @@ handleSavingsSettings() {
         const asset = state.investment.assets[state.investment.currentAsset];
         if (!asset) return;
 
-        if (asset.type === 'savings') {
+        if (asset.type === "savings") {
             this.openSheet({
-                title: 'Edit Saldo (Koreksi Manual)',
+                title: "Edit Saldo (Koreksi Manual)",
                 fields: [
-                    { id: 'balance', label: 'Saldo Celengan (Rp)', type: 'text', inputmode: 'numeric', placeholder: String(asset.balance) }
+                    {
+                        id: "balance",
+                        label: "Saldo Celengan (Rp)",
+                        type: "text",
+                        inputmode: "numeric",
+                        placeholder: String(asset.balance)
+                    }
                 ],
-                confirmLabel: 'Simpan Koreksi',
-                onConfirm: (values) => {
+                confirmLabel: "Simpan Koreksi",
+                onConfirm: values => {
                     const bal = this.parseAmount(values.balance);
-                    if (bal === null || bal < 0) return 'Masukkan jumlah yang valid.';
+                    if (bal === null || bal < 0)
+                        return "Masukkan jumlah yang valid.";
                     asset.balance = bal;
-
                     this.saveState();
                     this.renderInvestmentAsset();
                     this.renderInvestmentView();
                     this.renderHome();
-                    this.toast('Saldo dikoreksi ✨');
+                    this.toast("Saldo dikoreksi ✨");
                     return null;
                 }
             });
@@ -919,22 +1049,43 @@ handleSavingsSettings() {
         }
 
         this.openSheet({
-            title: 'Edit Saldo (Koreksi Manual)',
-            message: 'Kosongkan field yang gak mau diubah.',
+            title: "Edit Saldo (Koreksi Manual)",
+            message: "Kosongkan field yang gak mau diubah.",
             fields: [
-                { id: 'exchange', label: 'Saldo Exchange (Rp)', type: 'text', inputmode: 'numeric', placeholder: String(asset.exchangeTotal) },
-                { id: 'cycle', label: 'Saldo Siklus Saat Ini (Rp)', type: 'text', inputmode: 'numeric', placeholder: String(asset.cycleAmount) },
-                { id: 'pending', label: 'Saldo Belum Ditop Up (Rp)', type: 'text', inputmode: 'numeric', placeholder: String(asset.pendingAmount) }
+                {
+                    id: "exchange",
+                    label: "Saldo Exchange (Rp)",
+                    type: "text",
+                    inputmode: "numeric",
+                    placeholder: String(asset.exchangeTotal)
+                },
+                {
+                    id: "cycle",
+                    label: "Saldo Siklus Saat Ini (Rp)",
+                    type: "text",
+                    inputmode: "numeric",
+                    placeholder: String(asset.cycleAmount)
+                },
+                {
+                    id: "pending",
+                    label: "Saldo Belum Ditop Up (Rp)",
+                    type: "text",
+                    inputmode: "numeric",
+                    placeholder: String(asset.pendingAmount)
+                }
             ],
-            confirmLabel: 'Simpan Koreksi',
-            onConfirm: (values) => {
+            confirmLabel: "Simpan Koreksi",
+            onConfirm: values => {
                 const exch = this.parseAmount(values.exchange);
                 const cyc = this.parseAmount(values.cycle);
                 const pend = this.parseAmount(values.pending);
 
-                if (values.exchange.trim() !== '' && exch !== null && exch >= 0) asset.exchangeTotal = exch;
-                if (values.cycle.trim() !== '' && cyc !== null && cyc >= 0) asset.cycleAmount = cyc;
-                if (values.pending.trim() !== '' && pend !== null && pend >= 0) asset.pendingAmount = pend;
+                if (values.exchange.trim() !== "" && exch !== null && exch >= 0)
+                    asset.exchangeTotal = exch;
+                if (values.cycle.trim() !== "" && cyc !== null && cyc >= 0)
+                    asset.cycleAmount = cyc;
+                if (values.pending.trim() !== "" && pend !== null && pend >= 0)
+                    asset.pendingAmount = pend;
 
                 asset.balance = asset.exchangeTotal + asset.pendingAmount;
 
@@ -942,7 +1093,7 @@ handleSavingsSettings() {
                 this.renderInvestmentAsset();
                 this.renderInvestmentView();
                 this.renderHome();
-                this.toast('Saldo dikoreksi ✨');
+                this.toast("Saldo dikoreksi ✨");
                 return null;
             }
         });
@@ -1017,13 +1168,12 @@ handleSavingsSettings() {
         if (idx === -1) return;
 
         const entry = asset.history[idx];
-
         if (asset.type === "savings") {
             if (entry.kind === "deposit") {
                 asset.balance -= entry.pnlValue;
                 asset.deposited -= entry.pnlValue;
             } else if (entry.kind === "withdraw") {
-                asset.balance -= entry.pnlValue; // pnlValue negatif, jadi ini nambah balik
+                asset.balance -= entry.pnlValue;
             }
         } else {
             if (entry.kind === "deposit") {
@@ -1031,7 +1181,7 @@ handleSavingsSettings() {
                 asset.deposited -= entry.pnlValue;
                 asset.cycleAmount -= entry.pnlValue;
             } else if (entry.kind === "withdraw") {
-                asset.exchangeTotal -= entry.pnlValue; // pnlValue negatif, jadi ini nambah balik
+                asset.exchangeTotal -= entry.pnlValue;
             }
             asset.balance = asset.exchangeTotal + asset.pendingAmount;
         }
@@ -1084,7 +1234,7 @@ handleSavingsSettings() {
     },
 
     // ============================================
-    // THEME
+    // THEME / TOAST
     // ============================================
     toggleTheme() {
         const html = document.documentElement;
@@ -1099,9 +1249,6 @@ handleSavingsSettings() {
         if (settingToggle) settingToggle.checked = this.currentTheme === "dark";
     },
 
-    // ============================================
-    // TOAST
-    // ============================================
     toast(message) {
         const toastEl = document.getElementById("toast");
         toastEl.textContent = message;
@@ -1149,6 +1296,18 @@ handleSavingsSettings() {
                 seg.className = "segmented";
                 seg.id = `sheet-input-${field.id}`;
                 seg.dataset.value = field.default || field.options[0];
+
+                let warnEl = null;
+                if (field.warnMap) {
+                    warnEl = document.createElement("p");
+                    warnEl.className = "sheet-warning-text hidden";
+                    const initialWarn = field.warnMap[seg.dataset.value];
+                    if (initialWarn) {
+                        warnEl.textContent = initialWarn;
+                        warnEl.classList.remove("hidden");
+                    }
+                }
+
                 field.options.forEach(opt => {
                     const btn = document.createElement("button");
                     btn.type = "button";
@@ -1162,10 +1321,51 @@ handleSavingsSettings() {
                             b.classList.remove("active")
                         );
                         btn.classList.add("active");
+                        if (warnEl) {
+                            const w = field.warnMap[opt];
+                            if (w) {
+                                warnEl.textContent = w;
+                                warnEl.classList.remove("hidden");
+                            } else {
+                                warnEl.classList.add("hidden");
+                            }
+                        }
                     });
                     seg.appendChild(btn);
                 });
                 wrap.appendChild(seg);
+                if (warnEl) wrap.appendChild(warnEl);
+            } else if (field.type === "checklist") {
+                const list = document.createElement("div");
+                list.className = "checklist";
+                list.id = `sheet-input-${field.id}`;
+                list.dataset.value = "[]";
+                field.options.forEach(opt => {
+                    const btn = document.createElement("button");
+                    btn.type = "button";
+                    btn.className = "checklist-option";
+                    btn.textContent = opt;
+                    btn.addEventListener("click", () => {
+                        let selected = JSON.parse(list.dataset.value);
+                        if (selected.includes(opt)) {
+                            selected = selected.filter(v => v !== opt);
+                            btn.classList.remove("active");
+                        } else {
+                            selected.push(opt);
+                            btn.classList.add("active");
+                        }
+                        list.dataset.value = JSON.stringify(selected);
+                    });
+                    list.appendChild(btn);
+                });
+                wrap.appendChild(list);
+            } else if (field.type === "textarea") {
+                const textarea = document.createElement("textarea");
+                textarea.className = "sheet-input";
+                textarea.id = `sheet-input-${field.id}`;
+                textarea.rows = 3;
+                if (field.placeholder) textarea.placeholder = field.placeholder;
+                wrap.appendChild(textarea);
             } else {
                 const input = document.createElement("input");
                 input.className = "sheet-input";
@@ -1173,6 +1373,7 @@ handleSavingsSettings() {
                 input.type = field.type || "text";
                 if (field.placeholder) input.placeholder = field.placeholder;
                 if (field.inputmode) input.inputMode = field.inputmode;
+                if (field.value !== undefined) input.value = field.value;
                 wrap.appendChild(input);
             }
             body.appendChild(wrap);
@@ -1188,8 +1389,13 @@ handleSavingsSettings() {
             const values = {};
             fields.forEach(field => {
                 const el = document.getElementById(`sheet-input-${field.id}`);
-                values[field.id] =
-                    field.type === "segmented" ? el.dataset.value : el.value;
+                if (field.type === "segmented") {
+                    values[field.id] = el.dataset.value;
+                } else if (field.type === "checklist") {
+                    values[field.id] = JSON.parse(el.dataset.value || "[]");
+                } else {
+                    values[field.id] = el.value;
+                }
             });
             const error = onConfirm(values);
             if (error) {
@@ -1225,121 +1431,305 @@ handleSavingsSettings() {
         return Math.round(num);
     },
 
+    parseDecimal(raw) {
+        if (raw === null || raw === undefined) return null;
+        const cleaned = String(raw).trim().replace(/,/g, ".");
+        if (cleaned === "" || !/^-?\d+(\.\d+)?$/.test(cleaned)) return null;
+        const num = Number(cleaned);
+        return Number.isFinite(num) ? num : null;
+    },
+
+    formatUSC(value) {
+        const usc = Math.round(value);
+        const usd = (usc / 100).toFixed(2);
+        return `${usc.toLocaleString("id-ID")} USC ($${usd})`;
+    },
+
     // ============================================
-    // TRADING — DEPOSIT / WITHDRAW / ADD TRADE
+    // JOURNAL — RISK GUARD & TRADE PSYCHOLOGY
     // ============================================
-    handleDeposit() {
+    handleSetPeakBalance() {
+        const input = document.getElementById("journal-peak-input");
+        const val = this.parseAmount(input.value);
+        if (val === null || val <= 0) {
+            this.toast("Masukkan peak balance yang valid (USC).");
+            return;
+        }
+        const j = state.journal;
+        j.peakBalance = val;
+        j.currentBalance = val;
+        j.peakDate = this.todayISO();
+        j.lockdownActive = false;
+        this.saveState();
+        this.renderJournal();
+        this.toast("Peak balance hari ini disimpan ✨");
+    },
+
+    handleJournalSettings() {
+        const j = state.journal;
         this.openSheet({
-            title: "Deposit",
+            title: "Pengaturan Trading",
+            message:
+                "Kurs dipakai untuk konversi P/L (USC) ke Rupiah. Max Daily Loss dipakai untuk Risk Guard.",
             fields: [
                 {
-                    id: "amount",
-                    label: "Jumlah (Rp)",
+                    id: "rate",
+                    label: "Kurs 1 USD = Rp",
                     type: "text",
                     inputmode: "numeric",
-                    placeholder: ""
+                    placeholder: String(j.exchangeRate)
+                },
+                {
+                    id: "maxLoss",
+                    label: "Max Daily Loss (USC)",
+                    type: "text",
+                    inputmode: "numeric",
+                    placeholder: String(j.maxLoss)
                 }
             ],
-            confirmLabel: "Deposit",
+            confirmLabel: "Simpan",
             onConfirm: values => {
-                const amount = this.parseAmount(values.amount);
-                if (amount === null || amount <= 0)
-                    return "Masukkan jumlah yang valid.";
-
-                const cat = state.categories[state.currentCategory];
-                cat.balance += amount;
-                cat.deposited += amount;
-                cat.history.push(
-                    this.makeEntry(
-                        "deposit",
-                        "Deposit",
-                        "DEPOSIT",
-                        "badge-buy",
-                        amount
-                    )
-                );
-
+                const rate = this.parseAmount(values.rate);
+                if (rate === null || rate <= 0)
+                    return "Masukkan kurs yang valid.";
+                const maxLoss = this.parseAmount(values.maxLoss);
+                if (maxLoss === null || maxLoss <= 0)
+                    return "Masukkan Max Daily Loss yang valid.";
+                j.exchangeRate = rate;
+                j.maxLoss = maxLoss;
                 this.saveState();
-                this.renderCategory();
-                this.renderTradingHub();
-                this.renderHome();
-                this.toast("Deposit berhasil ditambahkan 🚀");
+                this.renderJournal();
+                this.toast("Pengaturan disimpan ✨");
                 return null;
             }
         });
     },
 
-    handleWithdraw() {
-        this.openSheet({
-            title: "Withdraw",
-            fields: [
-                {
-                    id: "amount",
-                    label: "Jumlah (Rp)",
-                    type: "text",
-                    inputmode: "numeric",
-                    placeholder: ""
-                }
-            ],
-            confirmLabel: "Withdraw",
-            onConfirm: values => {
-                const amount = this.parseAmount(values.amount);
-                if (amount === null || amount <= 0)
-                    return "Masukkan jumlah yang valid.";
+    checkJournalPeakReset() {
+        const j = state.journal;
+        if (j.peakDate && j.peakDate !== this.todayISO()) {
+            j.peakBalance = 0;
+            j.currentBalance = 0;
+            j.peakDate = null;
+            j.lockdownActive = false;
+        }
+    },
 
-                const cat = state.categories[state.currentCategory];
-                if (amount > cat.balance) return "Saldo kamu tidak cukup.";
+    renderJournal() {
+        this.checkJournalPeakReset();
+        const j = state.journal;
 
-                cat.balance -= amount;
-                cat.history.push(
-                    this.makeEntry(
-                        "withdraw",
-                        "Withdraw",
-                        "WITHDRAW",
-                        "badge-sell",
-                        -amount
-                    )
-                );
+        const peakInput = document.getElementById("journal-peak-input");
+        if (peakInput && j.peakDate === this.todayISO()) {
+            peakInput.value = j.peakBalance;
+        }
 
-                this.saveState();
-                this.renderCategory();
-                this.renderTradingHub();
-                this.renderHome();
-                this.toast("Penarikan berhasil diproses 💸");
-                return null;
+        const dynamicLimit = j.peakDate ? j.peakBalance - j.maxLoss : 0;
+        document.getElementById("journal-limit-text").textContent = j.peakDate
+            ? this.formatUSC(dynamicLimit)
+            : "Belum diatur";
+
+        const fillEl = document.getElementById("journal-health-fill");
+        const badgeEl = document.getElementById("journal-risk-badge");
+        const addBtn = document.getElementById("journal-add-trade-btn");
+
+        if (!j.peakDate) {
+            fillEl.style.width = "100%";
+            fillEl.className = "health-bar-fill";
+            badgeEl.className = "badge";
+            badgeEl.textContent =
+                "Set peak balance dulu untuk mulai tracking risiko.";
+        } else {
+            const pct = Math.max(
+                0,
+                Math.min(
+                    100,
+                    ((j.currentBalance - dynamicLimit) / j.maxLoss) * 100
+                )
+            );
+
+            if (j.currentBalance <= dynamicLimit) {
+                fillEl.className = "health-bar-fill zone-red";
+                badgeEl.className = "badge loss";
+                badgeEl.textContent = "LOCKDOWN AKTIF";
+                j.lockdownActive = true;
+            } else if (pct <= 30) {
+                fillEl.className = "health-bar-fill zone-red";
+                badgeEl.className = "badge loss";
+                badgeEl.textContent =
+                    "Peringatan: Mendekati Batas Trailing Loss!";
+            } else if (pct <= 69) {
+                fillEl.className = "health-bar-fill zone-yellow";
+                badgeEl.className = "badge warning";
+                badgeEl.textContent =
+                    "Peringatan: Mendekati Batas Trailing Loss!";
+            } else {
+                fillEl.className = "health-bar-fill";
+                badgeEl.className = "badge profit";
+                badgeEl.textContent = "Sistem Aman. Tetap Disiplin!";
             }
-        });
+        }
+
+        const lockdownOverlay = document.getElementById("lockdown-overlay");
+        if (j.lockdownActive) {
+            document.getElementById("lockdown-message").textContent =
+                `Max Daily Loss -${j.maxLoss} USC Tersentuh. Matikan Aplikasi & Rehat!`;
+            lockdownOverlay.classList.add("active");
+            addBtn.disabled = true;
+            addBtn.style.opacity = "0.4";
+            addBtn.style.pointerEvents = "none";
+        } else {
+            addBtn.disabled = false;
+            addBtn.style.opacity = "1";
+            addBtn.style.pointerEvents = "auto";
+        }
+
+        this.renderJournalActiveList();
+        this.renderJournalStats();
     },
 
-    makeEntry(kind, label, badgeText, badgeClass, pnlValue) {
-        const now = new Date();
-        return {
-            kind,
-            label,
-            badgeText,
-            badgeClass,
-            pnlValue,
-            date: this.todayKey(),
-            time:
-                now.getHours() +
-                ":" +
-                String(now.getMinutes()).padStart(2, "0"),
-            timestamp: now.getTime()
-        };
+    dismissLockdown() {
+        document.getElementById("lockdown-overlay").classList.remove("active");
     },
 
-    handleAddTrade() {
+    handleAddJournalTrade() {
+        if (state.journal.lockdownActive) {
+            this.toast("Lockdown aktif — rehat dulu, bro.");
+            return;
+        }
         this.openSheet({
-            title: "Tambah Posisi Trade",
+            title: "Tambah Trade Baru",
             fields: [
                 { id: "pair", label: "Pair", type: "text", placeholder: "" },
                 {
                     id: "type",
-                    label: "Jenis Trade",
+                    label: "Jenis",
                     type: "segmented",
                     options: ["BUY", "SELL"],
                     default: "BUY"
                 },
+                {
+                    id: "entry",
+                    label: "Entry Price",
+                    type: "text",
+                    inputmode: "decimal",
+                    placeholder: ""
+                },
+                {
+                    id: "sl",
+                    label: "SL Price",
+                    type: "text",
+                    inputmode: "decimal",
+                    placeholder: ""
+                },
+                {
+                    id: "lot",
+                    label: "Lot Size",
+                    type: "text",
+                    inputmode: "decimal",
+                    value: "0.01"
+                },
+                {
+                    id: "pip",
+                    label: "Pip Size (buat hitung TP)",
+                    type: "text",
+                    inputmode: "decimal",
+                    value: "0.0001"
+                },
+                {
+                    id: "reasons",
+                    label: "Kenapa Entry? (bisa pilih lebih dari 1)",
+                    type: "checklist",
+                    options: [
+                        "Fundamental / Macro Data",
+                        "Technical Setup",
+                        "Live Stream Signal",
+                        "Own Zone Validation"
+                    ]
+                },
+                {
+                    id: "note",
+                    label: "Kenapa yakin sama trade ini, bro?",
+                    type: "textarea",
+                    placeholder: ""
+                },
+                {
+                    id: "mood",
+                    label: "Kondisi Psikologi Saat Ini",
+                    type: "segmented",
+                    options: ["😎 Calm", "🔥 Hyped", "😡 Revenge", "😨 FOMO"],
+                    default: "😎 Calm",
+                    warnMap: {
+                        "😡 Revenge":
+                            "⚠️ Otak sedang terdistraksi dopamin! Kecilkan lot atau tunda entry 10 menit dulu.",
+                        "😨 FOMO":
+                            "⚠️ Otak sedang terdistraksi dopamin! Kecilkan lot atau tunda entry 10 menit dulu."
+                    }
+                }
+            ],
+            confirmLabel: "Tambah Trade",
+            onConfirm: values => {
+                const pair = values.pair.trim();
+                if (!pair) return "Pair tidak boleh kosong.";
+                const entry = this.parseDecimal(values.entry);
+                if (entry === null) return "Entry price harus angka valid.";
+                const sl = this.parseDecimal(values.sl);
+                if (sl === null) return "SL price harus angka valid.";
+                const lot = this.parseDecimal(values.lot);
+                if (lot === null || lot <= 0)
+                    return "Lot size harus angka valid.";
+                const pip = this.parseDecimal(values.pip) || 0.0001;
+                if (values.reasons.length === 0)
+                    return "Pilih minimal 1 alasan entry.";
+
+                const trade = {
+                    id: Date.now() + Math.random().toString(36).slice(2),
+                    timestamp: Date.now(),
+                    day: this.todayKey(),
+                    pair: pair.toUpperCase(),
+                    type: values.type,
+                    entryPrice: entry,
+                    slPrice: sl,
+                    lot,
+                    pipSize: pip,
+                    reasons: values.reasons,
+                    reasonNote: values.note.trim(),
+                    mood: values.mood,
+                    tp: { tp1: false, tp2: false, tp3: false },
+                    status: "open",
+                    pnlUSC: null
+                };
+
+                state.journal.trades.push(trade);
+                this.saveState();
+                this.renderJournal();
+                this.toast("Trade baru dicatat 📝");
+                return null;
+            }
+        });
+    },
+
+    toggleTP(tradeId, level) {
+        const trade = state.journal.trades.find(t => t.id === tradeId);
+        if (!trade) return;
+        const key = "tp" + level;
+        trade.tp[key] = !trade.tp[key];
+        this.saveState();
+        this.renderJournal();
+        if (level === 1 && trade.tp.tp1) {
+            this.toast(
+                "🔔 WAJIB SET BREAK EVEN (SL BE) DI HARGA ENTRY SEKARANG!"
+            );
+        }
+    },
+
+    handleCloseJournalTrade(tradeId) {
+        const trade = state.journal.trades.find(t => t.id === tradeId);
+        if (!trade) return;
+        this.openSheet({
+            title: "Tutup Posisi",
+            message: `${trade.pair} — ${trade.type}`,
+            fields: [
                 {
                     id: "sign",
                     label: "Hasil",
@@ -1349,123 +1739,160 @@ handleSavingsSettings() {
                 },
                 {
                     id: "amount",
-                    label: "Jumlah (Rp)",
+                    label: "Jumlah (USC)",
                     type: "text",
                     inputmode: "numeric",
                     placeholder: ""
                 }
             ],
-            confirmLabel: "Tambah",
+            confirmLabel: "Tutup Posisi",
             onConfirm: values => {
-                const pair = values.pair.trim();
-                if (!pair) return "Pair tidak boleh kosong.";
-
                 const amount = this.parseAmount(values.amount);
                 if (amount === null || amount <= 0)
-                    return "Jumlah harus berupa angka positif, contoh: 150000.";
+                    return "Masukkan jumlah yang valid.";
 
-                const pnlValue = values.sign === "Loss" ? -amount : amount;
-                const badgeClass =
-                    values.type === "BUY" ? "badge-buy" : "badge-sell";
-                const entry = this.makeEntry(
-                    "trade",
-                    pair.toUpperCase(),
-                    values.type,
-                    badgeClass,
-                    pnlValue
+                const pnlUSC = values.sign === "Loss" ? -amount : amount;
+                trade.status = "closed";
+                trade.pnlUSC = pnlUSC;
+                trade.closedAt = Date.now();
+
+                const j = state.journal;
+                j.currentBalance += pnlUSC;
+                if (j.currentBalance > j.peakBalance) {
+                    j.peakBalance = j.currentBalance;
+                }
+
+                const pnlIDR = Math.round((pnlUSC / 100) * j.exchangeRate);
+                const cat = state.forex;
+                cat.balance += pnlIDR;
+                cat.pnlTotal += pnlIDR;
+                cat.history.push(
+                    this.makeEntry(
+                        "trade",
+                        trade.pair,
+                        trade.type,
+                        trade.type === "BUY" ? "badge-buy" : "badge-sell",
+                        pnlIDR
+                    )
                 );
 
-                const cat = state.categories[state.currentCategory];
-                cat.history.push(entry);
-                cat.balance += pnlValue;
-                cat.pnlTotal += pnlValue;
-
                 this.saveState();
-                this.renderCategory();
+                this.renderJournal();
                 this.renderTradingHub();
                 this.renderHome();
                 this.renderStats();
-                this.toast("Posisi baru berhasil ditambahkan 🔥");
+                this.toast(
+                    pnlUSC >= 0
+                        ? "Posisi ditutup, cuan dicatat 🚀"
+                        : "Posisi ditutup, loss dicatat. Tetap disiplin ya."
+                );
                 return null;
             }
         });
     },
 
-    confirmDeleteEntry(timestamp) {
+    confirmDeleteJournalTrade(tradeId) {
         this.openSheet({
-            title: "Hapus Transaksi?",
+            title: "Hapus Posisi?",
             message:
-                "Transaksi ini akan dihapus permanen dan saldo kategori akan disesuaikan.",
+                "Posisi aktif ini akan dihapus tanpa dicatat sebagai hasil.",
             confirmLabel: "Hapus",
             danger: true,
             onConfirm: () => {
-                this.removeHistoryEntry(timestamp);
+                state.journal.trades = state.journal.trades.filter(
+                    t => t.id !== tradeId
+                );
+                this.saveState();
+                this.renderJournal();
+                this.toast("Posisi dihapus.");
                 return null;
             }
         });
     },
 
-    removeHistoryEntry(timestamp) {
-        const cat = state.categories[state.currentCategory];
-        const idx = cat.history.findIndex(e => e.timestamp === timestamp);
-        if (idx === -1) return;
+    renderJournalActiveList() {
+        const container = document.getElementById("journal-active-list");
+        const active = state.journal.trades.filter(t => t.status === "open");
+        container.innerHTML = "";
 
-        const entry = cat.history[idx];
-        if (entry.kind === "deposit") {
-            cat.balance -= entry.pnlValue;
-            cat.deposited -= entry.pnlValue;
-        } else if (entry.kind === "withdraw") {
-            cat.balance -= entry.pnlValue;
-        } else if (entry.kind === "trade") {
-            cat.balance -= entry.pnlValue;
-            cat.pnlTotal -= entry.pnlValue;
+        if (active.length === 0) {
+            container.innerHTML =
+                '<p class="empty-state">Belum ada posisi trading aktif.</p>';
+            return;
         }
 
-        cat.history.splice(idx, 1);
-        this.saveState();
-        this.renderCategory();
-        this.renderTradingHub();
-        this.renderHome();
-        this.renderStats();
-        this.toast("Transaksi dihapus.");
+        active
+            .slice()
+            .reverse()
+            .forEach(trade => {
+                const reasonTags = trade.reasons
+                    .map(r => `<span class="reason-tag">${r}</span>`)
+                    .join("");
+                const card = document.createElement("div");
+                card.className = "card journal-position-card";
+                card.innerHTML = `
+                <div class="journal-position-head">
+                    <div>
+                        <h3>${trade.pair} <span class="hist-badge ${trade.type === "BUY" ? "badge-buy" : "badge-sell"}">${trade.type}</span></h3>
+                        <p style="color:var(--text-secondary); font-size:0.85rem; margin-top:4px;">Lot ${trade.lot} • Entry ${trade.entryPrice} • <span class="mood-badge">${trade.mood}</span></p>
+                    </div>
+                    <button class="journal-position-close-btn" onclick="app.handleCloseJournalTrade('${trade.id}')">Tutup</button>
+                </div>
+                <div style="margin-top:12px;">${reasonTags}</div>
+                <div class="tp-row">
+                    <button class="tp-btn ${trade.tp.tp1 ? "reached" : ""}" onclick="app.toggleTP('${trade.id}', 1)">TP1 +50p</button>
+                    <button class="tp-btn ${trade.tp.tp2 ? "reached" : ""}" onclick="app.toggleTP('${trade.id}', 2)">TP2 +100p</button>
+                    <button class="tp-btn ${trade.tp.tp3 ? "reached" : ""}" onclick="app.toggleTP('${trade.id}', 3)">TP3 +150p</button>
+                </div>
+                ${trade.tp.tp1 ? '<div class="be-reminder">🔔 WAJIB SET BREAK EVEN (SL BE) DI HARGA ENTRY SEKARANG!</div>' : ""}
+                <button class="hist-delete" style="margin-top:12px;" onclick="app.confirmDeleteJournalTrade('${trade.id}')" aria-label="Hapus posisi">
+                    <i class="fa-solid fa-trash"></i> <span style="font-size:0.8rem; margin-left:4px;">Hapus Posisi</span>
+                </button>
+            `;
+                container.appendChild(card);
+            });
     },
 
-    confirmResetAll() {
-        this.openSheet({
-            title: "Reset Semua Data?",
-            message:
-                "Semua saldo, deposit, withdraw, aset investment, dan riwayat trading akan dihapus permanen. Tindakan ini tidak bisa dibatalkan.",
-            confirmLabel: "Reset Semua",
-            danger: true,
-            onConfirm: () => {
-                this.resetAllData();
-                return null;
+    renderJournalStats() {
+        const closed = state.journal.trades.filter(t => t.status === "closed");
+
+        const buildBars = (containerId, groupKeyFn) => {
+            const container = document.getElementById(containerId);
+            container.innerHTML = "";
+            if (closed.length === 0) {
+                container.innerHTML =
+                    '<p class="empty-state">Belum ada trade selesai.</p>';
+                return;
             }
-        });
-    },
+            const groups = {};
+            closed.forEach(t => {
+                const keys = groupKeyFn(t);
+                keys.forEach(key => {
+                    if (!groups[key]) groups[key] = { win: 0, total: 0 };
+                    groups[key].total += 1;
+                    if (t.pnlUSC >= 0) groups[key].win += 1;
+                });
+            });
+            Object.keys(groups).forEach(key => {
+                const g = groups[key];
+                const pct = Math.round((g.win / g.total) * 100);
+                const row = document.createElement("div");
+                row.className = "stat-bar-row";
+                row.innerHTML = `
+                    <div class="stat-bar-label">
+                        <span>${key}</span>
+                        <span class="text-accent" style="font-weight:700;">${pct}% (${g.win}/${g.total})</span>
+                    </div>
+                    <div class="stat-bar-track">
+                        <div class="stat-bar-fill" style="width:${pct}%;"></div>
+                    </div>
+                `;
+                container.appendChild(row);
+            });
+        };
 
-    resetAllData() {
-        state.investment = { assets: {}, currentAsset: null };
-        Object.keys(state.categories).forEach(name => {
-            state.categories[name] = {
-                balance: 0,
-                deposited: 0,
-                pnlTotal: 0,
-                history: []
-            };
-        });
-        state.currentCategory = null;
-
-        this.saveState();
-        document.getElementById("sidebar").classList.remove("open");
-        document.getElementById("overlay").classList.remove("active");
-
-        this.renderHome();
-        this.renderTradingHub();
-        this.renderStats();
-        this.renderInvestmentView();
-        this.navigate("home");
-        this.toast("Semua data berhasil direset.");
+        buildBars("journal-stats-reason", t => t.reasons);
+        buildBars("journal-stats-mood", t => [t.mood]);
     }
 };
 
