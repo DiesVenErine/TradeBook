@@ -571,7 +571,7 @@ body {
     margin-bottom: 12px;
     display: flex;
     justify-content: space-between;
-    align-items: center;
+    align-items: flex-start;
     border: 1px solid var(--border-color);
 }
 .hist-left {

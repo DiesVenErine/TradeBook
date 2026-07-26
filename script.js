@@ -9,6 +9,7 @@ const state = {
     journal: {
         exchangeRate: 15800,
         maxLoss: 50,
+        startBalance: 0,
         peakBalance: 0,
         currentBalance: 0,
         peakDate: null,
@@ -81,6 +82,7 @@ const app = {
                     {
                         exchangeRate: 15800,
                         maxLoss: 50,
+                        startBalance: 0,
                         peakBalance: 0,
                         currentBalance: 0,
                         peakDate: null,
@@ -89,6 +91,10 @@ const app = {
                     },
                     saved.journal
                 );
+                // Migrasi: data lama belum punya startBalance, pakai peakBalance sbg patokan
+                if (!state.journal.startBalance) {
+                    state.journal.startBalance = state.journal.peakBalance || 0;
+                }
             }
         } catch (e) {
             console.error("Gagal memuat data tersimpan:", e);
@@ -425,10 +431,20 @@ const app = {
             const card = document.createElement("div");
             card.className = "history-card";
             const pnlClass = entry.pnlValue >= 0 ? "text-profit" : "text-loss";
+
+            const psychHtml = entry.mood
+                ? `<div style="margin-top:8px;">
+                       <span class="mood-badge">${entry.mood}</span>
+                       ${(entry.reasons || []).map(r => `<span class="reason-tag">${r}</span>`).join("")}
+                       ${entry.reasonNote ? `<p style="margin-top:6px; font-size:0.8rem; color:var(--text-secondary); font-style:italic;">"${entry.reasonNote}"</p>` : ""}
+                   </div>`
+                : "";
+
             card.innerHTML = `
-                <div class="hist-left">
+                <div class="hist-left" style="flex:1;">
                     <span class="hist-pair">${entry.label} <span class="hist-badge ${entry.badgeClass}">${entry.badgeText}</span></span>
                     <span class="hist-time">${entry.date}, ${entry.time}</span>
+                    ${psychHtml}
                 </div>
                 <div class="hist-actions">
                     <span class="hist-pnl ${pnlClass}">${entry.pnlValue >= 0 ? "+ " : "- "}${this.formatCurrency(Math.abs(entry.pnlValue))}</span>
@@ -567,6 +583,10 @@ const app = {
         } else if (entry.kind === "trade") {
             cat.balance -= entry.pnlValue;
             cat.pnlTotal -= entry.pnlValue;
+            if (entry.tradeId) {
+                state.journal.trades = state.journal.trades.filter(t => t.id !== entry.tradeId);
+                this.recomputeJournalDaily();
+            }
         }
 
         cat.history.splice(idx, 1);
@@ -574,6 +594,7 @@ const app = {
         this.renderTradingHub();
         this.renderHome();
         this.renderStats();
+        this.renderJournal();
         this.toast("Transaksi dihapus.");
     },
 
@@ -597,6 +618,7 @@ const app = {
         state.journal = {
             exchangeRate: 15800,
             maxLoss: 50,
+            startBalance: 0,
             peakBalance: 0,
             currentBalance: 0,
             peakDate: null,
@@ -1452,17 +1474,40 @@ const app = {
         const input = document.getElementById("journal-peak-input");
         const val = this.parseAmount(input.value);
         if (val === null || val <= 0) {
-            this.toast("Masukkan peak balance yang valid (USC).");
+            this.toast("Masukkan saldo awal yang valid (USC).");
             return;
         }
         const j = state.journal;
-        j.peakBalance = val;
-        j.currentBalance = val;
+        j.startBalance = val;
         j.peakDate = this.todayISO();
         j.lockdownActive = false;
+        this.recomputeJournalDaily();
         this.saveState();
         this.renderJournal();
-        this.toast("Peak balance hari ini disimpan ✨");
+        this.toast("Saldo awal disimpan ✨");
+    },
+
+    // Hitung ulang currentBalance & peakBalance dari startBalance + semua trade
+    // yang sudah ditutup hari ini. Dipanggil tiap kali ada trade ditutup/dihapus,
+    // biar angkanya selalu akurat gak peduli urutan editnya.
+    recomputeJournalDaily() {
+        const j = state.journal;
+        if (!j.peakDate) return;
+
+        let running = j.startBalance;
+        let peak = running;
+
+        const todayTrades = j.trades
+            .filter(t => t.status === "closed" && t.closedDate === j.peakDate)
+            .sort((a, b) => a.closedAt - b.closedAt);
+
+        todayTrades.forEach(t => {
+            running += t.pnlUSC;
+            if (running > peak) peak = running;
+        });
+
+        j.currentBalance = running;
+        j.peakBalance = peak;
     },
 
     handleJournalSettings() {
@@ -1508,9 +1553,10 @@ const app = {
     checkJournalPeakReset() {
         const j = state.journal;
         if (j.peakDate && j.peakDate !== this.todayISO()) {
-            j.peakBalance = 0;
-            j.currentBalance = 0;
-            j.peakDate = null;
+            // Hari baru: saldo terakhir kemarin otomatis jadi modal awal hari ini
+            j.startBalance = j.currentBalance;
+            j.peakBalance = j.currentBalance;
+            j.peakDate = this.todayISO();
             j.lockdownActive = false;
         }
     },
@@ -1521,7 +1567,7 @@ const app = {
 
         const peakInput = document.getElementById("journal-peak-input");
         if (peakInput && j.peakDate === this.todayISO()) {
-            peakInput.value = j.peakBalance;
+            peakInput.value = j.startBalance;
         }
 
         const dynamicLimit = j.peakDate ? j.peakBalance - j.maxLoss : 0;
@@ -1755,26 +1801,23 @@ const app = {
                 trade.status = "closed";
                 trade.pnlUSC = pnlUSC;
                 trade.closedAt = Date.now();
+                trade.closedDate = this.todayISO();
 
                 const j = state.journal;
-                j.currentBalance += pnlUSC;
-                if (j.currentBalance > j.peakBalance) {
-                    j.peakBalance = j.currentBalance;
-                }
+                this.recomputeJournalDaily();
 
                 const pnlIDR = Math.round((pnlUSC / 100) * j.exchangeRate);
                 const cat = state.forex;
                 cat.balance += pnlIDR;
                 cat.pnlTotal += pnlIDR;
-                cat.history.push(
-                    this.makeEntry(
-                        "trade",
-                        trade.pair,
-                        trade.type,
-                        trade.type === "BUY" ? "badge-buy" : "badge-sell",
-                        pnlIDR
-                    )
+                const historyEntry = this.makeEntry(
+                    "trade", trade.pair, trade.type, trade.type === "BUY" ? "badge-buy" : "badge-sell", pnlIDR
                 );
+                historyEntry.mood = trade.mood;
+                historyEntry.reasons = trade.reasons;
+                historyEntry.reasonNote = trade.reasonNote;
+                historyEntry.tradeId = trade.id;
+                cat.history.push(historyEntry);
 
                 this.saveState();
                 this.renderJournal();
@@ -1839,6 +1882,8 @@ const app = {
                     <button class="journal-position-close-btn" onclick="app.handleCloseJournalTrade('${trade.id}')">Tutup</button>
                 </div>
                 <div style="margin-top:12px;">${reasonTags}</div>
+                ${trade.reasonNote ? `<p style="margin-top:8px; font-size:0.85rem; color:var(--text-secondary); font-style:italic;">"${trade.reasonNote}"</p>` : ""}
+                
                 <div class="tp-row">
                     <button class="tp-btn ${trade.tp.tp1 ? "reached" : ""}" onclick="app.toggleTP('${trade.id}', 1)">TP1 +50p</button>
                     <button class="tp-btn ${trade.tp.tp2 ? "reached" : ""}" onclick="app.toggleTP('${trade.id}', 2)">TP2 +100p</button>
