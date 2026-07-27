@@ -1473,18 +1473,32 @@ const app = {
     handleSetPeakBalance() {
         const input = document.getElementById("journal-peak-input");
         const val = this.parseAmount(input.value);
-        if (val === null || val <= 0) {
-            this.toast("Masukkan saldo awal yang valid (USC).");
+        if (val === null || val < 0) {
+            this.toast("Masukkan saldo yang valid (USC).");
             return;
         }
         const j = state.journal;
-        j.startBalance = val;
-        j.peakDate = this.todayISO();
+        const today = this.todayISO();
+
+        if (j.peakDate !== today) {
+            // Belum pernah diatur hari ini -> ini jadi saldo awal
+            j.startBalance = val;
+            j.peakDate = today;
+        } else {
+            // Sudah jalan hari ini -> ini koreksi saldo SEKARANG.
+            // startBalance disesuaikan mundur biar trade yang sudah
+            // ditutup hari ini tidak ikut kehitung dobel.
+            const todaysPnl = j.trades
+                .filter(t => t.status === "closed" && t.closedDate === today)
+                .reduce((s, t) => s + t.pnlUSC, 0);
+            j.startBalance = val - todaysPnl;
+        }
+
         j.lockdownActive = false;
         this.recomputeJournalDaily();
         this.saveState();
         this.renderJournal();
-        this.toast("Saldo awal disimpan ✨");
+        this.toast("Saldo disimpan ✨");
     },
 
     // Hitung ulang currentBalance & peakBalance dari startBalance + semua trade
@@ -1567,13 +1581,12 @@ const app = {
 
         const peakInput = document.getElementById("journal-peak-input");
         if (peakInput && j.peakDate === this.todayISO()) {
-            peakInput.value = j.startBalance;
+            peakInput.value = j.currentBalance;
         }
 
         const dynamicLimit = j.peakDate ? j.peakBalance - j.maxLoss : 0;
-        document.getElementById("journal-limit-text").textContent = j.peakDate
-            ? this.formatUSC(dynamicLimit)
-            : "Belum diatur";
+        document.getElementById("journal-limit-text").textContent =
+            j.peakDate ? this.formatUSC(dynamicLimit) : "Belum diatur";
 
         const fillEl = document.getElementById("journal-health-fill");
         const badgeEl = document.getElementById("journal-risk-badge");

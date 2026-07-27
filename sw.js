@@ -1,4 +1,4 @@
-const CACHE_NAME = 'tradebook-cache-v8';
+const CACHE_NAME = 'tradebook-cache-v7';
 const urlsToCache = [
   './',
   './index.html',
