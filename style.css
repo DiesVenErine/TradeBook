@@ -1227,3 +1227,47 @@ textarea.sheet-input {
     min-height: 80px;
     font-family: inherit;
 }
+
+.growth-chart {
+    display: flex;
+    align-items: flex-end;
+    gap: 8px;
+    height: 160px;
+    overflow-x: auto;
+    padding-bottom: 4px;
+}
+.growth-bar-col {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: flex-end;
+    flex: 0 0 auto;
+    width: 32px;
+    height: 100%;
+}
+.growth-bar-track {
+    width: 100%;
+    flex: 1;
+    display: flex;
+    align-items: flex-end;
+    background: var(--border-color);
+    border-radius: 6px;
+    overflow: hidden;
+}
+.growth-bar-fill {
+    width: 100%;
+    border-radius: 6px 6px 0 0;
+    transition: height 0.4s ease;
+}
+.bar-profit { background: var(--profit-color); }
+.bar-loss { background: var(--loss-color); }
+.growth-bar-pct {
+    font-size: 0.7rem;
+    font-weight: 700;
+    margin-top: 6px;
+}
+.growth-bar-label {
+    font-size: 0.65rem;
+    color: var(--text-secondary);
+    margin-top: 2px;
+}

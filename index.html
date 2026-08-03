@@ -243,9 +243,9 @@
 
                     <!-- RISK GUARD -->
                     <div class="card" style="margin-bottom:16px;">
-                        <p class="card-subtitle">Saldo Trading (USC)</p>
+                        <p class="card-subtitle">Saldo Trading (USD)</p>
                         <div style="display:flex; gap:10px; align-items:center;">
-                            <input type="text" inputmode="numeric" id="journal-peak-input" class="sheet-input" placeholder="misal: 10000" style="flex:1;">
+                            <input type="text" inputmode="decimal" id="journal-peak-input" class="sheet-input" placeholder="" style="flex:1;">
                             <button class="btn btn-primary" style="padding:14px 18px;" onclick="app.handleSetPeakBalance()">Set</button>
                         </div>
                         <p style="font-size:0.78rem; color:var(--text-secondary); margin-top:8px;">Angka ini otomatis gerak ngikutin profit/loss. Tombol "Set" cuma buat isi pertama kali atau koreksi manual.</p>
@@ -525,8 +525,8 @@
                     </div>
 
                     <div class="chart-placeholder card">
-                        <div class="chart-mockup line-chart"></div>
-                        <p>Monthly Growth Overview</p>
+                        <p class="card-subtitle" style="margin-bottom:16px;">Monthly Growth Overview</p>
+                        <div id="growth-chart" class="growth-chart"></div>
                     </div>
 
                     <div class="grid-2">
@@ -558,6 +558,21 @@
                             <p>Total Trades</p>
                             <h3 id="stat-trades">0</h3>
                         </div>
+                    </div>
+
+                    <div class="section-title">Riwayat Bulanan</div>
+
+                    <div class="card" style="margin-bottom:16px;">
+                        <p class="card-subtitle">Cari Bulan Tertentu</p>
+                        <div style="display:flex; gap:10px; align-items:center;">
+                            <input type="month" id="monthly-search-input" class="sheet-input" style="flex:1;">
+                            <button class="btn btn-primary" style="padding:14px 18px;" onclick="app.searchMonthlyHistory()">Cari</button>
+                        </div>
+                    </div>
+                    <div id="monthly-search-result"></div>
+
+                    <div id="monthly-history-list" class="history-list">
+                        <p class="empty-state">Belum ada riwayat bulan sebelumnya.</p>
                     </div>
                 </section>
 

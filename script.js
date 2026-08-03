@@ -5,16 +5,17 @@
 
 const state = {
     investment: { assets: {}, currentAsset: null },
-    forex: { balance: 0, deposited: 0, pnlTotal: 0, history: [] },
+    forex: { balance: 0, deposited: 0, pnlTotal: 0, history: [], monthId: null, monthStartBalance: 0, monthlyHistory: [] },
     journal: {
         exchangeRate: 15800,
-        maxLoss: 50,
+        maxLoss: 0.5,
         startBalance: 0,
         peakBalance: 0,
         currentBalance: 0,
         peakDate: null,
         lockdownActive: false,
-        trades: []
+        trades: [],
+        unit: "usd"
     }
 };
 
@@ -67,33 +68,48 @@ const app = {
             // Forex: pakai data baru kalau ada, atau migrasi dari struktur lama (categories.Forex)
             if (saved.forex) {
                 state.forex = Object.assign(
-                    { balance: 0, deposited: 0, pnlTotal: 0, history: [] },
+                    { balance: 0, deposited: 0, pnlTotal: 0, history: [], monthId: null, monthStartBalance: 0, monthlyHistory: [] },
                     saved.forex
                 );
             } else if (saved.categories && saved.categories.Forex) {
                 state.forex = Object.assign(
-                    { balance: 0, deposited: 0, pnlTotal: 0, history: [] },
+                    { balance: 0, deposited: 0, pnlTotal: 0, history: [], monthId: null, monthStartBalance: 0, monthlyHistory: [] },
                     saved.categories.Forex
                 );
             }
 
             if (saved.journal) {
+                const wasUsd = saved.journal.unit === "usd";
                 state.journal = Object.assign(
                     {
                         exchangeRate: 15800,
-                        maxLoss: 50,
+                        maxLoss: 0.5,
                         startBalance: 0,
                         peakBalance: 0,
                         currentBalance: 0,
                         peakDate: null,
                         lockdownActive: false,
-                        trades: []
+                        trades: [],
+                        unit: "usd"
                     },
                     saved.journal
                 );
                 // Migrasi: data lama belum punya startBalance, pakai peakBalance sbg patokan
                 if (!state.journal.startBalance) {
                     state.journal.startBalance = state.journal.peakBalance || 0;
+                }
+                // Migrasi satu kali: dulu satuannya cent (USC), sekarang USD polos.
+                if (!wasUsd) {
+                    state.journal.maxLoss = state.journal.maxLoss / 100;
+                    state.journal.startBalance = state.journal.startBalance / 100;
+                    state.journal.peakBalance = state.journal.peakBalance / 100;
+                    state.journal.currentBalance = state.journal.currentBalance / 100;
+                    state.journal.trades = state.journal.trades.map(t =>
+                        t.pnlUSC === null || t.pnlUSC === undefined
+                            ? t
+                            : Object.assign({}, t, { pnlUSC: t.pnlUSC / 100 })
+                    );
+                    state.journal.unit = "usd";
                 }
             }
         } catch (e) {
@@ -201,6 +217,71 @@ const app = {
         d.setHours(0, 0, 0, 0);
         d.setDate(diff);
         return d;
+    },
+
+    startOfDay(date) {
+        const d = new Date(date);
+        d.setHours(0, 0, 0, 0);
+        return d.getTime();
+    },
+
+    getMonthId(date) {
+        const d = new Date(date);
+        return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+    },
+
+    monthLabel(monthId) {
+        const [y, m] = monthId.split("-").map(Number);
+        const months = ["Januari","Februari","Maret","April","Mei","Juni","Juli","Agustus","September","Oktober","November","Desember"];
+        return `${months[m - 1]} ${y}`;
+    },
+
+    // Total net P/L dari trade yang timestamp-nya beneran masuk monthId tertentu.
+    sumMonthTrades(monthId) {
+        let sum = 0;
+        state.forex.history.forEach(t => {
+            if (t.kind === "trade" && this.getMonthId(new Date(t.timestamp)) === monthId) {
+                sum += t.pnlValue;
+            }
+        });
+        return sum;
+    },
+
+    // Cek pergantian bulan.
+
+    // Cek pergantian bulan. Kalau berganti, arsipkan performa bulan lalu
+    // (murni dari trade BUY/SELL — deposit/withdraw TIDAK ikut dihitung)
+    // ke monthlyHistory, lalu reset patokan bulan baru.
+    checkMonthRollover() {
+        const cat = state.forex;
+        const currentMonthId = this.getMonthId(new Date());
+
+        if (!cat.monthId) {
+            cat.monthId = currentMonthId;
+            return;
+        }
+
+        if (cat.monthId === currentMonthId) return;
+
+        let profit = 0, loss = 0, trades = 0;
+        cat.history.forEach(t => {
+            if (t.kind !== "trade") return;
+            if (this.getMonthId(new Date(t.timestamp)) !== cat.monthId) return;
+            trades += 1;
+            if (t.pnlValue >= 0) profit += t.pnlValue;
+            else loss += Math.abs(t.pnlValue);
+        });
+        const net = profit - loss;
+        const netPercent = cat.monthStartBalance > 0 ? (net / cat.monthStartBalance) * 100 : 0;
+
+        cat.monthlyHistory.unshift({
+            monthId: cat.monthId,
+            label: this.monthLabel(cat.monthId),
+            profit, loss, net, netPercent, trades
+        });
+        if (cat.monthlyHistory.length > 24) cat.monthlyHistory = cat.monthlyHistory.slice(0, 24);
+
+        cat.monthId = currentMonthId;
     },
 
     weeklyTradePnl() {
@@ -313,9 +394,11 @@ const app = {
     },
 
     overallTrendPercent() {
-        const deposited = state.forex.deposited;
-        const pnl = state.forex.pnlTotal;
-        return deposited > 0 ? (pnl / deposited) * 100 : 0;
+        this.checkMonthRollover();
+        const cat = state.forex;
+        const net = this.sumMonthTrades(cat.monthId);
+        const startBalance = cat.balance - net;
+        return startBalance > 0 ? (net / startBalance) * 100 : 0;
     },
 
     // ============================================
@@ -340,11 +423,11 @@ const app = {
         badge.className = "badge " + (trend >= 0 ? "profit" : "loss");
         badge.innerHTML = `<i class="fa-solid fa-arrow-trend-${trend >= 0 ? "up" : "down"}"></i> ${trend >= 0 ? "+" : ""}${trend.toFixed(1)}% This Month`;
 
-        const today = this.todayKey();
+        const todayStart = this.startOfDay(new Date());
         let todayPnl = 0;
         let todayTrades = 0;
         state.forex.history.forEach(t => {
-            if (t.kind === "trade" && t.date === today) {
+            if (t.kind === "trade" && t.timestamp >= todayStart) {
                 todayPnl += t.pnlValue;
                 todayTrades += 1;
             }
@@ -371,10 +454,10 @@ const app = {
             this.tradingTotal()
         );
 
-        const today = this.todayKey();
+        const todayStart = this.startOfDay(new Date());
         let todayPnl = 0;
         state.forex.history.forEach(t => {
-            if (t.kind === "trade" && t.date === today) todayPnl += t.pnlValue;
+            if (t.kind === "trade" && t.timestamp >= todayStart) todayPnl += t.pnlValue;
         });
         const todayEl = document.getElementById("trading-today-pnl");
         todayEl.textContent =
@@ -393,12 +476,15 @@ const app = {
     },
 
     renderStats() {
+        this.checkMonthRollover();
+        const cat = state.forex;
         let profit = 0,
             loss = 0,
             wins = 0,
             trades = 0;
-        state.forex.history.forEach(t => {
+        cat.history.forEach(t => {
             if (t.kind !== "trade") return;
+            if (this.getMonthId(new Date(t.timestamp)) !== cat.monthId) return;
             trades += 1;
             if (t.pnlValue >= 0) {
                 profit += t.pnlValue;
@@ -413,6 +499,122 @@ const app = {
         document.getElementById("stat-winrate").textContent =
             trades > 0 ? `${Math.round((wins / trades) * 100)}%` : "0%";
         document.getElementById("stat-trades").textContent = trades;
+        this.renderMonthlyHistory();
+        this.renderGrowthChart();
+    },
+
+    renderMonthlyHistory() {
+        const container = document.getElementById("monthly-history-list");
+        if (!container) return;
+        const list = state.forex.monthlyHistory || [];
+        container.innerHTML = "";
+        if (list.length === 0) {
+            container.innerHTML = '<p class="empty-state">Belum ada riwayat bulan sebelumnya.</p>';
+            return;
+        }
+        list.slice(0, 5).forEach(m => this.renderMonthlyCard(container, m));
+        if (list.length > 5) {
+            const note = document.createElement("p");
+            note.className = "empty-state";
+            note.style.fontSize = "0.8rem";
+            note.textContent = `Ada ${list.length - 5} bulan lagi di riwayat — cari pakai kolom di atas.`;
+            container.appendChild(note);
+        }
+    },
+
+    renderMonthlyCard(container, m) {
+        const netClass = m.net >= 0 ? "text-profit" : "text-loss";
+        const card = document.createElement("div");
+        card.className = "history-card";
+        card.style.flexDirection = "column";
+        card.style.alignItems = "stretch";
+        card.innerHTML = `
+            <div class="hist-left" style="flex-direction:row; justify-content:space-between; width:100%;">
+                <div>
+                    <span class="hist-pair">${m.label}</span>
+                    <span class="hist-time" style="display:block;">${m.trades} trade tercatat</span>
+                </div>
+                <span class="hist-pnl ${netClass}">${m.net >= 0 ? "+ " : "- "}${this.formatCurrency(Math.abs(m.net))} (${m.netPercent >= 0 ? "+" : ""}${m.netPercent.toFixed(1)}%)</span>
+            </div>
+        `;
+        if (m.reasonStats || m.moodStats) {
+            const detail = document.createElement("div");
+            detail.style.marginTop = "12px";
+            detail.style.width = "100%";
+            const buildRows = (title, stats) => {
+                if (!stats || Object.keys(stats).length === 0) return "";
+                let rows = `<p class="card-subtitle" style="margin-top:10px;">${title}</p>`;
+                Object.keys(stats).forEach(key => {
+                    const g = stats[key];
+                    const pct = Math.round((g.win / g.total) * 100);
+                    rows += `
+                        <div class="stat-bar-row" style="margin-top:8px;">
+                            <div class="stat-bar-label">
+                                <span>${key}</span>
+                                <span class="text-accent" style="font-weight:700;">${pct}% (${g.win}/${g.total})</span>
+                            </div>
+                            <div class="stat-bar-track">
+                                <div class="stat-bar-fill" style="width:${pct}%;"></div>
+                            </div>
+                        </div>
+                    `;
+                });
+                return rows;
+            };
+            detail.innerHTML =
+                buildRows("Win Rate berdasarkan Alasan Entry", m.reasonStats) +
+                buildRows("Win Rate berdasarkan Mood", m.moodStats);
+            card.appendChild(detail);
+        }
+        container.appendChild(card);
+    },
+
+    renderGrowthChart() {
+        const container = document.getElementById("growth-chart");
+        if (!container) return;
+        const cat = state.forex;
+
+        const archived = (cat.monthlyHistory || []).slice(0, 11).reverse();
+        const currentPct = this.overallTrendPercent();
+        const currentLabel = this.monthLabel(cat.monthId || this.getMonthId(new Date()));
+        const data = [
+            ...archived.map(m => ({ label: m.label, pct: m.netPercent })),
+            { label: currentLabel, pct: currentPct }
+        ];
+
+        container.innerHTML = "";
+        const maxAbs = Math.max(10, ...data.map(d => Math.abs(d.pct)));
+
+        data.forEach(d => {
+            const heightPct = Math.min(100, (Math.abs(d.pct) / maxAbs) * 100);
+            const col = document.createElement("div");
+            col.className = "growth-bar-col";
+            col.innerHTML = `
+                <div class="growth-bar-track">
+                    <div class="growth-bar-fill ${d.pct >= 0 ? "bar-profit" : "bar-loss"}" style="height:${heightPct}%;"></div>
+                </div>
+                <span class="growth-bar-pct ${d.pct >= 0 ? "text-profit" : "text-loss"}">${d.pct >= 0 ? "+" : ""}${d.pct.toFixed(0)}%</span>
+                <span class="growth-bar-label">${d.label.slice(0, 3)}</span>
+            `;
+            container.appendChild(col);
+        });
+    },
+
+    searchMonthlyHistory() {
+        const input = document.getElementById("monthly-search-input");
+        const resultEl = document.getElementById("monthly-search-result");
+        if (!input || !input.value) {
+            this.toast("Pilih bulan dulu.");
+            return;
+        }
+        const monthId = input.value; // format YYYY-MM dari <input type="month">
+        const found = (state.forex.monthlyHistory || []).find(m => m.monthId === monthId);
+        resultEl.innerHTML = "";
+        if (!found) {
+            resultEl.innerHTML = '<p class="empty-state">Tidak ada riwayat untuk bulan itu.</p>';
+            return;
+        }
+        this.renderMonthlyCard(resultEl, found);
     },
 
     renderHistory() {
@@ -488,9 +690,21 @@ const app = {
                     )
                 );
 
+                const j = state.journal;
+                const depositUSD = Math.round((amount / j.exchangeRate) * 100) / 100;
+                if (!j.peakDate) {
+                    j.peakDate = this.todayISO();
+                    j.startBalance = depositUSD;
+                } else {
+                    j.startBalance += depositUSD;
+                }
+                j.lockdownActive = false;
+                this.recomputeJournalDaily();
+
                 this.saveState();
                 this.renderTradingHub();
                 this.renderHome();
+                this.renderJournal();
                 this.toast("Deposit berhasil ditambahkan 🚀");
                 return null;
             }
@@ -518,6 +732,12 @@ const app = {
                 const cat = state.forex;
                 if (amount > cat.balance) return "Saldo kamu tidak cukup.";
 
+                const j = state.journal;
+                const withdrawUSD = Math.round((amount / j.exchangeRate) * 100) / 100;
+                if (j.peakDate && withdrawUSD > j.currentBalance) {
+                    return "Saldo USD tidak cukup untuk penarikan sebesar ini.";
+                }
+
                 cat.balance -= amount;
                 cat.history.push(
                     this.makeEntry(
@@ -529,9 +749,15 @@ const app = {
                     )
                 );
 
+                if (j.peakDate) {
+                    j.startBalance -= withdrawUSD;
+                    this.recomputeJournalDaily();
+                }
+
                 this.saveState();
                 this.renderTradingHub();
                 this.renderHome();
+                this.renderJournal();
                 this.toast("Penarikan berhasil diproses 💸");
                 return null;
             }
@@ -587,6 +813,8 @@ const app = {
                 state.journal.trades = state.journal.trades.filter(t => t.id !== entry.tradeId);
                 this.recomputeJournalDaily();
             }
+        } else if (entry.kind === "adjustment") {
+            cat.balance -= entry.pnlValue;
         }
 
         cat.history.splice(idx, 1);
@@ -614,16 +842,17 @@ const app = {
 
     resetAllData() {
         state.investment = { assets: {}, currentAsset: null };
-        state.forex = { balance: 0, deposited: 0, pnlTotal: 0, history: [] };
+        state.forex = { balance: 0, deposited: 0, pnlTotal: 0, history: [], monthId: null, monthStartBalance: 0, monthlyHistory: [] };
         state.journal = {
             exchangeRate: 15800,
-            maxLoss: 50,
+            maxLoss: 0.5,
             startBalance: 0,
             peakBalance: 0,
             currentBalance: 0,
             peakDate: null,
             lockdownActive: false,
-            trades: []
+            trades: [],
+            unit: "usd"
         };
 
         this.saveState();
@@ -1461,10 +1690,8 @@ const app = {
         return Number.isFinite(num) ? num : null;
     },
 
-    formatUSC(value) {
-        const usc = Math.round(value);
-        const usd = (usc / 100).toFixed(2);
-        return `${usc.toLocaleString("id-ID")} USC ($${usd})`;
+    formatUSD(value) {
+        return `$${value.toFixed(2)}`;
     },
 
     // ============================================
@@ -1472,22 +1699,19 @@ const app = {
     // ============================================
     handleSetPeakBalance() {
         const input = document.getElementById("journal-peak-input");
-        const val = this.parseAmount(input.value);
+        const val = this.parseDecimal(input.value);
         if (val === null || val < 0) {
-            this.toast("Masukkan saldo yang valid (USC).");
+            this.toast("Masukkan saldo yang valid (USD).");
             return;
         }
         const j = state.journal;
         const today = this.todayISO();
+        const oldCurrent = j.currentBalance;
 
         if (j.peakDate !== today) {
-            // Belum pernah diatur hari ini -> ini jadi saldo awal
             j.startBalance = val;
             j.peakDate = today;
         } else {
-            // Sudah jalan hari ini -> ini koreksi saldo SEKARANG.
-            // startBalance disesuaikan mundur biar trade yang sudah
-            // ditutup hari ini tidak ikut kehitung dobel.
             const todaysPnl = j.trades
                 .filter(t => t.status === "closed" && t.closedDate === today)
                 .reduce((s, t) => s + t.pnlUSC, 0);
@@ -1496,8 +1720,28 @@ const app = {
 
         j.lockdownActive = false;
         this.recomputeJournalDaily();
+
+        // Sinkron ke saldo Rupiah: selisih USD yang kamu koreksi otomatis
+        // ikut nambah/kurangin saldo Forex sesuai kurs sekarang.
+        const delta = j.currentBalance - oldCurrent;
+        if (Math.abs(delta) > 0.001) {
+            const deltaIDR = Math.round(delta * j.exchangeRate);
+            state.forex.balance += deltaIDR;
+            state.forex.history.push(
+                this.makeEntry(
+                    "adjustment",
+                    "Koreksi Saldo USD",
+                    "KOREKSI",
+                    delta >= 0 ? "badge-buy" : "badge-sell",
+                    deltaIDR
+                )
+            );
+        }
+
         this.saveState();
         this.renderJournal();
+        this.renderTradingHub();
+        this.renderHome();
         this.toast("Saldo disimpan ✨");
     },
 
@@ -1538,11 +1782,12 @@ const app = {
                     inputmode: "numeric",
                     placeholder: String(j.exchangeRate)
                 },
-                {
+                
+                    {
                     id: "maxLoss",
-                    label: "Max Daily Loss (USC)",
+                    label: "Max Daily Loss (USD)",
                     type: "text",
-                    inputmode: "numeric",
+                    inputmode: "decimal",
                     placeholder: String(j.maxLoss)
                 }
             ],
@@ -1551,7 +1796,7 @@ const app = {
                 const rate = this.parseAmount(values.rate);
                 if (rate === null || rate <= 0)
                     return "Masukkan kurs yang valid.";
-                const maxLoss = this.parseAmount(values.maxLoss);
+                const maxLoss = this.parseDecimal(values.maxLoss);
                 if (maxLoss === null || maxLoss <= 0)
                     return "Masukkan Max Daily Loss yang valid.";
                 j.exchangeRate = rate;
@@ -1581,12 +1826,12 @@ const app = {
 
         const peakInput = document.getElementById("journal-peak-input");
         if (peakInput && j.peakDate === this.todayISO()) {
-            peakInput.value = j.currentBalance;
+            peakInput.value = Math.round(j.currentBalance * 100) / 100;
         }
 
         const dynamicLimit = j.peakDate ? j.peakBalance - j.maxLoss : 0;
         document.getElementById("journal-limit-text").textContent =
-            j.peakDate ? this.formatUSC(dynamicLimit) : "Belum diatur";
+            j.peakDate ? this.formatUSD(dynamicLimit) : "Belum diatur";
 
         const fillEl = document.getElementById("journal-health-fill");
         const badgeEl = document.getElementById("journal-risk-badge");
@@ -1632,7 +1877,7 @@ const app = {
         const lockdownOverlay = document.getElementById("lockdown-overlay");
         if (j.lockdownActive) {
             document.getElementById("lockdown-message").textContent =
-                `Max Daily Loss -${j.maxLoss} USC Tersentuh. Matikan Aplikasi & Rehat!`;
+                `Max Daily Loss -${this.formatUSD(j.maxLoss)} Tersentuh. Matikan Aplikasi & Rehat!`;
             lockdownOverlay.classList.add("active");
             addBtn.disabled = true;
             addBtn.style.opacity = "0.4";
@@ -1798,15 +2043,15 @@ const app = {
                 },
                 {
                     id: "amount",
-                    label: "Jumlah (USC)",
+                    label: "Jumlah (USD)",
                     type: "text",
-                    inputmode: "numeric",
+                    inputmode: "decimal",
                     placeholder: ""
                 }
             ],
             confirmLabel: "Tutup Posisi",
             onConfirm: values => {
-                const amount = this.parseAmount(values.amount);
+                const amount = this.parseDecimal(values.amount);
                 if (amount === null || amount <= 0)
                     return "Masukkan jumlah yang valid.";
 
@@ -1819,7 +2064,7 @@ const app = {
                 const j = state.journal;
                 this.recomputeJournalDaily();
 
-                const pnlIDR = Math.round((pnlUSC / 100) * j.exchangeRate);
+                const pnlIDR = Math.round(pnlUSC * j.exchangeRate);
                 const cat = state.forex;
                 cat.balance += pnlIDR;
                 cat.pnlTotal += pnlIDR;
@@ -1912,7 +2157,10 @@ const app = {
     },
 
     renderJournalStats() {
-        const closed = state.journal.trades.filter(t => t.status === "closed");
+        const currentMonthId = state.forex.monthId || this.getMonthId(new Date());
+        const closed = state.journal.trades.filter(
+            t => t.status === "closed" && t.closedDate && t.closedDate.startsWith(currentMonthId)
+        );
 
         const buildBars = (containerId, groupKeyFn) => {
             const container = document.getElementById(containerId);
