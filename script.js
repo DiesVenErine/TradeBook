@@ -202,6 +202,20 @@ const app = {
         }).format(value);
     },
 
+    // Format singkat buat label di bar chart (misal Rp150rb, Rp1,2jt)
+    formatCompactIDR(value) {
+        const abs = Math.abs(value);
+        let str;
+        if (abs >= 1000000) {
+            str = (abs / 1000000).toFixed(1).replace(/\.0$/, "") + "jt";
+        } else if (abs >= 1000) {
+            str = Math.round(abs / 1000) + "rb";
+        } else {
+            str = String(Math.round(abs));
+        }
+        return (value >= 0 ? "+" : "-") + "Rp" + str;
+    },
+
     todayKey() {
         const d = new Date();
         return `${d.getDate()} ${d.toLocaleString("en-US", { month: "short" })}`;
@@ -505,10 +519,11 @@ const app = {
             this.tradingTotal()
         );
 
-        const trend = this.overallTrendPercent();
+        this.checkMonthRollover();
+        const monthNet = this.sumMonthTrades(state.forex.monthId);
         const badge = document.getElementById("home-total-badge");
-        badge.className = "badge " + (trend >= 0 ? "profit" : "loss");
-        badge.innerHTML = `<i class="fa-solid fa-arrow-trend-${trend >= 0 ? "up" : "down"}"></i> ${trend >= 0 ? "+" : ""}${trend.toFixed(1)}% This Month`;
+        badge.className = "badge " + (monthNet >= 0 ? "profit" : "loss");
+        badge.innerHTML = `<i class="fa-solid fa-arrow-trend-${monthNet >= 0 ? "up" : "down"}"></i> ${monthNet >= 0 ? "+ " : "- "}${this.formatCurrency(Math.abs(monthNet))} Bulan Ini`;
 
         const todayStart = this.startOfDay(new Date());
         let todayPnl = 0;
@@ -528,8 +543,8 @@ const app = {
         document.getElementById("home-today-trades").textContent = todayTrades;
 
         const growthEl = document.getElementById("home-monthly-growth");
-        growthEl.textContent = `${trend >= 0 ? "+ " : "- "}${Math.abs(trend).toFixed(1)}%`;
-        growthEl.className = trend >= 0 ? "text-profit" : "text-loss";
+        growthEl.textContent = `${monthNet >= 0 ? "+ " : "- "}${this.formatCurrency(Math.abs(monthNet))}`;
+        growthEl.className = monthNet >= 0 ? "text-profit" : "text-loss";
     },
 
     // ============================================
@@ -621,7 +636,7 @@ const app = {
                     <span class="hist-pair">${m.label}</span>
                     <span class="hist-time" style="display:block;">${m.trades} trade tercatat</span>
                 </div>
-                <span class="hist-pnl ${netClass}">${m.net >= 0 ? "+ " : "- "}${this.formatCurrency(Math.abs(m.net))} (${m.netPercent >= 0 ? "+" : ""}${m.netPercent.toFixed(1)}%)</span>
+                <span class="hist-pnl ${netClass}">${m.net >= 0 ? "+ " : "- "}${this.formatCurrency(Math.abs(m.net))}</span>
             </div>
         `;
         if (m.reasonStats || m.moodStats) {
@@ -662,25 +677,25 @@ const app = {
         const cat = state.forex;
 
         const archived = (cat.monthlyHistory || []).slice(0, 11).reverse();
-        const currentPct = this.overallTrendPercent();
+        const currentNet = this.sumMonthTrades(cat.monthId);
         const currentLabel = this.monthLabel(cat.monthId || this.getMonthId(new Date()));
         const data = [
-            ...archived.map(m => ({ label: m.label, pct: m.netPercent })),
-            { label: currentLabel, pct: currentPct }
+            ...archived.map(m => ({ label: m.label, net: m.net })),
+            { label: currentLabel, net: currentNet }
         ];
 
         container.innerHTML = "";
-        const maxAbs = Math.max(10, ...data.map(d => Math.abs(d.pct)));
+        const maxAbs = Math.max(1000, ...data.map(d => Math.abs(d.net)));
 
         data.forEach(d => {
-            const heightPct = Math.min(100, (Math.abs(d.pct) / maxAbs) * 100);
+            const heightPct = Math.min(100, (Math.abs(d.net) / maxAbs) * 100);
             const col = document.createElement("div");
             col.className = "growth-bar-col";
             col.innerHTML = `
                 <div class="growth-bar-track">
-                    <div class="growth-bar-fill ${d.pct >= 0 ? "bar-profit" : "bar-loss"}" style="height:${heightPct}%;"></div>
+                    <div class="growth-bar-fill ${d.net >= 0 ? "bar-profit" : "bar-loss"}" style="height:${heightPct}%;"></div>
                 </div>
-                <span class="growth-bar-pct ${d.pct >= 0 ? "text-profit" : "text-loss"}">${d.pct >= 0 ? "+" : ""}${d.pct.toFixed(0)}%</span>
+                <span class="growth-bar-pct ${d.net >= 0 ? "text-profit" : "text-loss"}">${this.formatCompactIDR(d.net)}</span>
                 <span class="growth-bar-label">${d.label.slice(0, 3)}</span>
             `;
             container.appendChild(col);
