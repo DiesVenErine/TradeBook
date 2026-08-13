@@ -127,6 +127,8 @@ const app = {
         this.renderJournal();
         this.attachRipples();
         history.replaceState({ view: "home" }, "", "#home");
+        history.pushState({ view: "home" }, "", "#home");
+        this.exitArmed = false;
         window.addEventListener("popstate", e => {
             const sheet = document.getElementById("bottom-sheet");
             if (sheet.classList.contains("open")) {
@@ -134,7 +136,29 @@ const app = {
                 history.pushState({ view: "current" }, "", location.hash);
                 return;
             }
+
             const view = (e.state && e.state.view) || "home";
+            const currentlyOnHome = document
+                .getElementById("view-home")
+                .classList.contains("active");
+
+            // User pencet back PAS LAGI DI HOME -> minta konfirmasi dulu,
+            // jangan langsung keluar aplikasi.
+            if (view === "home" && currentlyOnHome) {
+                if (this.exitArmed) {
+                    // Back kedua dalam 2 detik -> biarkan, aplikasi akan keluar
+                    return;
+                }
+                this.exitArmed = true;
+                this.toast("Tekan sekali lagi untuk keluar aplikasi");
+                history.pushState({ view: "home" }, "", "#home");
+                clearTimeout(this._exitTimer);
+                this._exitTimer = setTimeout(() => {
+                    this.exitArmed = false;
+                }, 2000);
+                return;
+            }
+
             this.navigate(view, true);
         });
         console.log("TradeBook App Initialized! 🚀");
@@ -247,6 +271,49 @@ const app = {
         return sum;
     },
 
+    // Total Deposit/Withdraw/Koreksi (BUKAN trade) yang kejadian di bulan itu.
+    // Dipakai buat "menetralkan" pengaruh transaksi non-trading dari persentase performa.
+    sumMonthNonTradeFlow(monthId) {
+        let sum = 0;
+        state.forex.history.forEach(t => {
+            if (t.kind !== "trade" && this.getMonthId(new Date(t.timestamp)) === monthId) {
+                sum += t.pnlValue;
+            }
+        });
+        return sum;
+    },
+
+    // Total Deposit (khusus deposit, bukan withdraw/koreksi) di bulan itu.
+    // Dipakai sebagai basis cadangan kalau modal awal bulan = Rp0
+    // (misal: akun baru, semua dana baru masuk bulan ini).
+    sumMonthDeposits(monthId) {
+        let sum = 0;
+        state.forex.history.forEach(t => {
+            if (t.kind === "deposit" && this.getMonthId(new Date(t.timestamp)) === monthId) {
+                sum += t.pnlValue;
+            }
+        });
+        return sum;
+    },
+
+    // Semua pemasukan modal bulan ini — deposit ATAU koreksi/adjustment yang
+    // menambah saldo (misal isi saldo lewat tombol "Set" di Risk Guard).
+    // Fallback ini lebih lengkap daripada sumMonthDeposits karena nangkep
+    // semua cara modal bisa "masuk", bukan cuma lewat tombol Deposit.
+    sumMonthCapitalIn(monthId) {
+        let sum = 0;
+        state.forex.history.forEach(t => {
+            if (
+                (t.kind === "deposit" || t.kind === "adjustment") &&
+                t.pnlValue > 0 &&
+                this.getMonthId(new Date(t.timestamp)) === monthId
+            ) {
+                sum += t.pnlValue;
+            }
+        });
+        return sum;
+    },
+
     // Cek pergantian bulan.
 
     // Cek pergantian bulan. Kalau berganti, arsipkan performa bulan lalu
@@ -272,7 +339,20 @@ const app = {
             else loss += Math.abs(t.pnlValue);
         });
         const net = profit - loss;
-        const netPercent = cat.monthStartBalance > 0 ? (net / cat.monthStartBalance) * 100 : 0;
+
+        // Balance di akhir bulan lalu = balance sekarang, dikurangi semua yang
+        // kejadian setelah bulan itu berakhir (yaitu bulan berjalan/currentMonthId).
+        const flowThisMonth = this.sumMonthNonTradeFlow(currentMonthId) + this.sumMonthTrades(currentMonthId);
+        const balanceAtEndOfOldMonth = cat.balance - flowThisMonth;
+        const flowOldMonth = this.sumMonthNonTradeFlow(cat.monthId);
+        const oldMonthStartBalance = balanceAtEndOfOldMonth - net - flowOldMonth;
+        let netPercent;
+        if (oldMonthStartBalance > 0) {
+            netPercent = (net / oldMonthStartBalance) * 100;
+        } else {
+            const capitalInOldMonth = this.sumMonthCapitalIn(cat.monthId);
+            netPercent = capitalInOldMonth > 0 ? (net / capitalInOldMonth) * 100 : 0;
+        }
 
         cat.monthlyHistory.unshift({
             monthId: cat.monthId,
@@ -397,8 +477,15 @@ const app = {
         this.checkMonthRollover();
         const cat = state.forex;
         const net = this.sumMonthTrades(cat.monthId);
-        const startBalance = cat.balance - net;
-        return startBalance > 0 ? (net / startBalance) * 100 : 0;
+        const flow = this.sumMonthNonTradeFlow(cat.monthId);
+        const startBalance = cat.balance - net - flow;
+
+        if (startBalance > 0) return (net / startBalance) * 100;
+
+        // Fallback: modal awal bulan ini Rp0 (semua dana baru masuk bulan ini,
+        // entah lewat Deposit atau koreksi saldo USD di Risk Guard).
+        const capitalIn = this.sumMonthCapitalIn(cat.monthId);
+        return capitalIn > 0 ? (net / capitalIn) * 100 : 0;
     },
 
     // ============================================
