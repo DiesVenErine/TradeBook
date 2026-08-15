@@ -40,7 +40,7 @@
                 <li onclick="app.navigate('investment')">
                     <i class="fa-solid fa-chart-pie"></i> Investment
                 </li>
-                <li onclick="app.navigate('trading')">
+                <li onclick="app.navigate('trading-accounts')">
                     <i class="fa-solid fa-chart-line"></i> Trading
                 </li>
                 <li onclick="app.navigate('stats')">
@@ -123,7 +123,7 @@
                         </div>
                         <div
                             class="card clickable-card"
-                            onclick="app.navigate('trading')"
+                            onclick="app.navigate('trading-accounts')"
                         >
                             <div class="card-icon primary-icon">
                                 <i class="fa-solid fa-chart-line"></i>
@@ -179,12 +179,34 @@
                      TRADING HUB — Forex only, merged with Journal
                      (Risk Guard + Psychology + Active Positions + Stats)
                 ============================================= -->
-                <section id="view-trading" class="view">
+                <section id="view-trading-accounts" class="view">
                     <div class="page-header">
                         <button class="back-btn" onclick="app.navigate('home')">
                             <i class="fa-solid fa-arrow-left"></i>
                         </button>
                         <h2>Trading <span class="text-accent">Hub</span></h2>
+                    </div>
+
+                    <div class="card balance-card">
+                        <p class="card-subtitle">Total Balance (Semua Akun)</p>
+                        <h1 class="balance-amount" id="trading-accounts-total" data-value="0">Rp0</h1>
+                    </div>
+
+                    <button class="btn btn-primary" style="width: 100%; margin-top: 20px" onclick="app.handleAddTradingAccount()">
+                        <i class="fa-solid fa-plus"></i> Tambah Akun
+                    </button>
+
+                    <div class="section-title">Daftar Akun</div>
+                    <div id="trading-accounts-list" class="category-list">
+                        <p class="empty-state">Belum ada akun trading. Tambah akun dulu</p>
+                    </div>
+                </section>
+                <section id="view-trading" class="view">
+                    <div class="page-header">
+                        <button class="back-btn" onclick="app.navigate('trading-accounts')">
+                            <i class="fa-solid fa-arrow-left"></i>
+                        </button>
+                        <h2 id="trading-account-name">Akun</h2>
                         <button
                             class="back-btn"
                             style="margin-left: auto"
@@ -195,7 +217,7 @@
                     </div>
 
                     <div class="card balance-card">
-                        <p class="card-subtitle">Trading Balance (Forex)</p>
+                        <p class="card-subtitle">Trading Balance</p>
                         <h1
                             class="balance-amount"
                             id="trading-total"
@@ -252,7 +274,7 @@
 
                         <div style="margin-top:20px;">
                             <div style="display:flex; justify-content:space-between; align-items:baseline; margin-bottom:8px;">
-                                <span style="font-size:0.85rem; color:var(--text-secondary); font-weight:600;">Dynamic Limit</span>
+                                <span style="font-size:0.85rem; color:var(--text-secondary); font-weight:600;">Kerugian dari Puncak Saldo</span>
                                 <span class="text-loss" style="font-weight:800;" id="journal-limit-text">Belum diatur</span>
                             </div>
                             <div class="health-bar-track">
@@ -271,8 +293,7 @@
                                     justify-content: center;
                                 "
                             >
-                                Set peak balance dulu untuk mulai tracking
-                                risiko.
+                                Set saldo dulu untuk mulai tracking risiko.
                             </div>
                         </div>
                     </div>
@@ -319,6 +340,14 @@
                     <div id="history-container" class="history-list">
                         <p class="empty-state">Belum ada transaksi.</p>
                     </div>
+
+                    <button
+                        class="btn btn-danger"
+                        style="width: 100%; margin-top: 32px"
+                        onclick="app.confirmDeleteTradingAccountCurrent()"
+                    >
+                        <i class="fa-solid fa-trash-can"></i> Hapus Akun Ini
+                    </button>
                 </section>
 
                 <section id="view-investment" class="view">
