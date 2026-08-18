@@ -21,6 +21,38 @@
         <link rel="stylesheet" href="style.css" />
     </head>
     <body>
+        <!-- Auth Screen -->
+        <div class="auth-screen" id="auth-screen">
+            <div class="auth-box">
+                <div class="about-logo" style="margin: 0 auto 8px;">
+                    <i class="fa-solid fa-bolt"></i>
+                </div>
+                <h2 style="text-align:center; margin-bottom:4px;">
+                    Trade<span class="text-accent">Book</span>
+                </h2>
+                <p style="text-align:center; color:var(--text-secondary); font-size:0.85rem; margin-bottom:20px;">
+                    Masuk untuk sinkronisasi data ke cloud
+                </p>
+
+                <div class="auth-field">
+                    <label>Email</label>
+                    <input type="email" id="auth-email" class="sheet-input" placeholder="email@kamu.com" autocomplete="email" />
+                </div>
+                <div class="auth-field">
+                    <label>Password</label>
+                    <input type="password" id="auth-password" class="sheet-input" placeholder="Minimal 6 karakter" autocomplete="current-password" />
+                </div>
+                <p class="sheet-error" id="auth-error" style="display:block; min-height: 18px;"></p>
+
+                <button class="btn btn-primary" style="width:100%; margin-top:8px;" id="auth-submit-btn" onclick="app.auth.submit()">
+                    Masuk
+                </button>
+                <button class="btn btn-secondary" style="width:100%; margin-top:10px;" id="auth-toggle-btn" onclick="app.auth.toggleMode()">
+                    Belum punya akun? Daftar
+                </button>
+            </div>
+        </div>
+
         <div class="overlay" id="overlay"></div>
 
         <nav class="sidebar" id="sidebar">
@@ -40,7 +72,7 @@
                 <li onclick="app.navigate('investment')">
                     <i class="fa-solid fa-chart-pie"></i> Investment
                 </li>
-                <li onclick="app.navigate('trading-accounts')">
+                <li onclick="app.navigate('trading')">
                     <i class="fa-solid fa-chart-line"></i> Trading
                 </li>
                 <li onclick="app.navigate('stats')">
@@ -99,8 +131,8 @@
                             </button>
                         </div>
                         <div class="badge profit" id="home-total-badge">
-                            <i class="fa-solid fa-arrow-trend-up"></i> + Rp0
-                            Bulan Ini
+                            <i class="fa-solid fa-arrow-trend-up"></i> +0.0%
+                            This Month
                         </div>
                     </div>
 
@@ -123,7 +155,7 @@
                         </div>
                         <div
                             class="card clickable-card"
-                            onclick="app.navigate('trading-accounts')"
+                            onclick="app.navigate('trading')"
                         >
                             <div class="card-icon primary-icon">
                                 <i class="fa-solid fa-chart-line"></i>
@@ -166,10 +198,10 @@
                                 <div class="summary-icon primary-icon-sm">
                                     <i class="fa-solid fa-chart-line"></i>
                                 </div>
-                                <p>Profit Bulan Ini</p>
+                                <p>Monthly Growth</p>
                             </div>
                             <h4 class="text-profit" id="home-monthly-growth">
-                                + Rp0
+                                + 0.0%
                             </h4>
                         </div>
                     </div>
@@ -179,34 +211,12 @@
                      TRADING HUB — Forex only, merged with Journal
                      (Risk Guard + Psychology + Active Positions + Stats)
                 ============================================= -->
-                <section id="view-trading-accounts" class="view">
+                <section id="view-trading" class="view">
                     <div class="page-header">
                         <button class="back-btn" onclick="app.navigate('home')">
                             <i class="fa-solid fa-arrow-left"></i>
                         </button>
                         <h2>Trading <span class="text-accent">Hub</span></h2>
-                    </div>
-
-                    <div class="card balance-card">
-                        <p class="card-subtitle">Total Balance (Semua Akun)</p>
-                        <h1 class="balance-amount" id="trading-accounts-total" data-value="0">Rp0</h1>
-                    </div>
-
-                    <button class="btn btn-primary" style="width: 100%; margin-top: 20px" onclick="app.handleAddTradingAccount()">
-                        <i class="fa-solid fa-plus"></i> Tambah Akun
-                    </button>
-
-                    <div class="section-title">Daftar Akun</div>
-                    <div id="trading-accounts-list" class="category-list">
-                        <p class="empty-state">Belum ada akun trading. Tambah akun dulu</p>
-                    </div>
-                </section>
-                <section id="view-trading" class="view">
-                    <div class="page-header">
-                        <button class="back-btn" onclick="app.navigate('trading-accounts')">
-                            <i class="fa-solid fa-arrow-left"></i>
-                        </button>
-                        <h2 id="trading-account-name">Akun</h2>
                         <button
                             class="back-btn"
                             style="margin-left: auto"
@@ -217,7 +227,7 @@
                     </div>
 
                     <div class="card balance-card">
-                        <p class="card-subtitle">Trading Balance</p>
+                        <p class="card-subtitle">Trading Balance (Forex)</p>
                         <h1
                             class="balance-amount"
                             id="trading-total"
@@ -274,7 +284,7 @@
 
                         <div style="margin-top:20px;">
                             <div style="display:flex; justify-content:space-between; align-items:baseline; margin-bottom:8px;">
-                                <span style="font-size:0.85rem; color:var(--text-secondary); font-weight:600;">Kerugian dari Puncak Saldo</span>
+                                <span style="font-size:0.85rem; color:var(--text-secondary); font-weight:600;">Dynamic Limit</span>
                                 <span class="text-loss" style="font-weight:800;" id="journal-limit-text">Belum diatur</span>
                             </div>
                             <div class="health-bar-track">
@@ -293,7 +303,8 @@
                                     justify-content: center;
                                 "
                             >
-                                Set saldo dulu untuk mulai tracking risiko.
+                                Set peak balance dulu untuk mulai tracking
+                                risiko.
                             </div>
                         </div>
                     </div>
@@ -340,14 +351,6 @@
                     <div id="history-container" class="history-list">
                         <p class="empty-state">Belum ada transaksi.</p>
                     </div>
-
-                    <button
-                        class="btn btn-danger"
-                        style="width: 100%; margin-top: 32px"
-                        onclick="app.confirmDeleteTradingAccountCurrent()"
-                    >
-                        <i class="fa-solid fa-trash-can"></i> Hapus Akun Ini
-                    </button>
                 </section>
 
                 <section id="view-investment" class="view">
@@ -647,6 +650,20 @@
                         </div>
                     </div>
 
+                    <div class="section-title">Akun</div>
+                    <div class="card">
+                        <p class="card-subtitle" style="margin-bottom:12px;">
+                            Login sebagai <span id="settings-user-email" style="color:var(--text-color); font-weight:600;">-</span>
+                        </p>
+                        <button
+                            class="btn btn-secondary"
+                            style="width: 100%"
+                            onclick="app.auth.logout()"
+                        >
+                            <i class="fa-solid fa-right-from-bracket"></i> Keluar
+                        </button>
+                    </div>
+
                     <div class="section-title">Data</div>
                     <div class="card">
                         <button
@@ -752,6 +769,7 @@
             </div>
         </div>
 
+        <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
         <script src="script.js"></script>
         <script>
             if ("serviceWorker" in navigator) {
