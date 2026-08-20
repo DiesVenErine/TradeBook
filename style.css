@@ -261,41 +261,6 @@ body {
 }
 
 /* =========================
-   AUTH SCREEN
-========================= */
-.auth-screen {
-    position: fixed;
-    inset: 0;
-    z-index: 9999;
-    display: none;
-    align-items: center;
-    justify-content: center;
-    background-color: var(--bg-color);
-    padding: 24px;
-}
-.auth-screen.active {
-    display: flex;
-}
-.auth-box {
-    width: 100%;
-    max-width: 380px;
-    background-color: var(--surface-color);
-    border: 1px solid var(--border-color);
-    border-radius: 24px;
-    padding: 32px 24px;
-    box-shadow: var(--shadow);
-}
-.auth-field {
-    margin-bottom: 14px;
-}
-.auth-field label {
-    display: block;
-    font-size: 0.8rem;
-    color: var(--text-secondary);
-    margin-bottom: 6px;
-}
-
-/* =========================
    CARDS & COMPONENTS
 ========================= */
 .card {
