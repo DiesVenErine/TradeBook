@@ -4,7 +4,16 @@
 ========================================================= */
 const SUPABASE_URL = "https://wdkwiwpcxkbxwkbtukvy.supabase.co";
 const SUPABASE_KEY = "sb_publishable_7kxe4wFEQSxLcc0lPEL3kw_GCQy2vIB";
-const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+let sb = null;
+try {
+    if (typeof supabase !== "undefined") {
+        sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+    } else {
+        console.error("Supabase SDK gagal dimuat — app tetap jalan mode lokal.");
+    }
+} catch (e) {
+    console.error("Gagal bikin Supabase client — app tetap jalan mode lokal:", e);
+}
 
 const state = {
     investment: { assets: {}, currentAsset: null },
@@ -169,6 +178,7 @@ const app = {
     },
 
     async checkExistingSession() {
+        if (!sb) { this.updateAuthUI(null); return; }
         try {
             const { data: { session } } = await sb.auth.getSession();
             if (session) await this.onAuthSuccess(session.user, true);
@@ -194,9 +204,10 @@ const app = {
     },
 
     async handleLogin() {
+        const errEl = document.getElementById("auth-error");
+        if (!sb) { errEl.textContent = "Fitur cloud lagi gak bisa diakses (koneksi ke Supabase gagal). Coba lagi nanti."; return; }
         const email = document.getElementById("auth-email").value.trim();
         const password = document.getElementById("auth-password").value;
-        const errEl = document.getElementById("auth-error");
         errEl.textContent = "";
         if (!email || !password) { errEl.textContent = "Isi email dan password dulu."; return; }
         const { data, error } = await sb.auth.signInWithPassword({ email, password });
@@ -205,9 +216,10 @@ const app = {
     },
 
     async handleSignup() {
+        const errEl = document.getElementById("auth-error");
+        if (!sb) { errEl.textContent = "Fitur cloud lagi gak bisa diakses (koneksi ke Supabase gagal). Coba lagi nanti."; return; }
         const email = document.getElementById("auth-email").value.trim();
         const password = document.getElementById("auth-password").value;
-        const errEl = document.getElementById("auth-error");
         errEl.textContent = "";
         if (!email || !password || password.length < 6) { errEl.textContent = "Isi email valid & password minimal 6 karakter."; return; }
         const { data, error } = await sb.auth.signUp({ email, password });
@@ -242,7 +254,7 @@ const app = {
     },
 
     async syncToSupabase() {
-        if (!this.currentUser) return;
+        if (!sb || !this.currentUser) return;
         try {
             await sb.from("user_data").upsert({
                 user_id: this.currentUser.id,
@@ -255,7 +267,7 @@ const app = {
     },
 
     handleLogout() {
-        sb.auth.signOut();
+        if (sb) sb.auth.signOut();
         this.currentUser = null;
         this.updateAuthUI(null);
         this.toast("Berhasil keluar. Data tetap tersimpan lokal di HP ini.");
