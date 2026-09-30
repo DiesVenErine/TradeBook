@@ -195,6 +195,9 @@
                     <button class="btn btn-primary" style="width: 100%; margin-top: 20px" onclick="app.handleAddTradingAccount()">
                         <i class="fa-solid fa-plus"></i> Tambah Akun
                     </button>
+                    <button class="btn btn-secondary" style="width: 100%; margin-top: 12px" onclick="app.navigateToReport()">
+                        <i class="fa-solid fa-chart-simple"></i> Lihat Laporan
+                    </button>
 
                     <div class="section-title">Daftar Akun</div>
                     <div id="trading-accounts-list" class="category-list">
@@ -349,6 +352,54 @@
                         <i class="fa-solid fa-trash-can"></i> Hapus Akun Ini
                     </button>
                 </section>
+
+              <section id="view-trading-report" class="view">
+                    <div class="page-header">
+                        <button class="back-btn" onclick="app.navigate('trading-accounts')"><i class="fa-solid fa-arrow-left"></i></button>
+                        <h2>Laporan <span class="text-accent">Trading</span></h2>
+                    </div>
+
+                    <div class="card" style="margin-bottom:16px;">
+                        <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:16px;">
+                            <button class="back-btn" onclick="app.shiftReportPeriod(-1)"><i class="fa-solid fa-chevron-left"></i></button>
+                            <span id="report-period-label" style="font-weight:700;">-</span>
+                            <button class="back-btn" onclick="app.shiftReportPeriod(1)"><i class="fa-solid fa-chevron-right"></i></button>
+                        </div>
+                        <div class="segmented">
+                            <button class="segmented-option active" id="report-mode-week" onclick="app.setReportMode('week')">Minggu</button>
+                            <button class="segmented-option" id="report-mode-month" onclick="app.setReportMode('month')">Bulan</button>
+                        </div>
+                    </div>
+
+                    <div class="grid-2">
+                        <div class="card stat-card">
+                            <p>Profit</p>
+                            <h3 class="text-profit balance-amount" id="report-profit" data-value="0">Rp0</h3>
+                        </div>
+                        <div class="card stat-card">
+                            <p>Loss</p>
+                            <h3 class="text-loss balance-amount" id="report-loss" data-value="0">Rp0</h3>
+                        </div>
+                    </div>
+
+                    <div class="card" style="margin-bottom:16px;">
+                        <div style="display:flex; justify-content:space-between; align-items:center;">
+                            <span class="card-subtitle" style="margin:0;">Net Periode Ini</span>
+                            <span id="report-net" style="font-weight:800; font-size:1.1rem;">Rp0</span>
+                        </div>
+                        <p style="font-size:0.8rem; color:var(--text-secondary); margin-top:8px;" id="report-trades-info">0 trade</p>
+                    </div>
+
+                    <div class="section-title">Rincian per Akun</div>
+                    <div id="report-account-breakdown" class="history-list">
+                        <p class="empty-state">Belum ada transaksi di periode ini.</p>
+                    </div>
+
+                    <div class="section-title">Riwayat Transaksi</div>
+                    <div id="report-history-list" class="history-list">
+                        <p class="empty-state">Belum ada transaksi di periode ini.</p>
+                    </div>
+              </section>
 
                 <section id="view-investment" class="view">
                     <div class="page-header">

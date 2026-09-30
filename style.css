@@ -1271,3 +1271,38 @@ textarea.sheet-input {
     color: var(--text-secondary);
     margin-top: 2px;
 }
+.week-group {
+    margin-bottom: 16px;
+}
+.week-group-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: var(--surface-color);
+    border-radius: 16px;
+    padding: 14px 16px;
+    border: 1px solid var(--border-color);
+    cursor: pointer;
+}
+.week-group-title {
+    font-weight: 700;
+    font-size: 0.95rem;
+    display: block;
+}
+.week-group-sub {
+    font-size: 0.78rem;
+    color: var(--text-secondary);
+}
+.week-group-chevron {
+    transition: transform 0.2s ease;
+    color: var(--text-secondary);
+}
+.week-group-chevron.rotated {
+    transform: rotate(180deg);
+}
+.week-group-body {
+    padding-top: 12px;
+}
+.week-group-body.collapsed {
+    display: none;
+}

@@ -596,6 +596,139 @@ const app = {
     },
 
     // ============================================
+    // LAPORAN — gabungan semua akun, per minggu/bulan
+    // ============================================
+    reportMode: "week",
+    reportOffset: 0,
+
+    navigateToReport() {
+        this.reportMode = "week";
+        this.reportOffset = 0;
+        document.getElementById("report-mode-week").classList.add("active");
+        document.getElementById("report-mode-month").classList.remove("active");
+        this.renderReportPage();
+        this.navigate("trading-report");
+    },
+
+    setReportMode(mode) {
+        this.reportMode = mode;
+        this.reportOffset = 0;
+        document.getElementById("report-mode-week").classList.toggle("active", mode === "week");
+        document.getElementById("report-mode-month").classList.toggle("active", mode === "month");
+        this.renderReportPage();
+    },
+
+    shiftReportPeriod(dir) {
+        if (this.reportOffset + dir > 0) return; // gak boleh nembus ke masa depan
+        this.reportOffset += dir;
+        this.renderReportPage();
+    },
+
+    getReportRange() {
+        const now = new Date();
+        if (this.reportMode === "week") {
+            const monday = this.getMonday(now);
+            monday.setDate(monday.getDate() + this.reportOffset * 7);
+            const start = monday.getTime();
+            const endDate = new Date(monday);
+            endDate.setDate(endDate.getDate() + 7);
+            const lastDay = new Date(endDate);
+            lastDay.setDate(lastDay.getDate() - 1);
+            const fmt = d => `${d.getDate()} ${d.toLocaleString("id-ID", { month: "short" })}`;
+            return { start, end: endDate.getTime(), label: `${fmt(monday)} - ${fmt(lastDay)}` };
+        }
+        const base = new Date(now.getFullYear(), now.getMonth() + this.reportOffset, 1);
+        const endDate = new Date(base.getFullYear(), base.getMonth() + 1, 1);
+        return { start: base.getTime(), end: endDate.getTime(), label: this.monthLabel(this.getMonthId(base)) };
+    },
+
+    combinedHistoryTagged() {
+        const out = [];
+        this.allAccounts().forEach(acc => {
+            acc.history.forEach(h => out.push(Object.assign({}, h, { accountId: acc.id, accountName: acc.name })));
+        });
+        return out;
+    },
+
+    renderReportPage() {
+        const range = this.getReportRange();
+        document.getElementById("report-period-label").textContent = range.label;
+
+        const entries = this.combinedHistoryTagged().filter(h => h.timestamp >= range.start && h.timestamp < range.end);
+
+        let profit = 0, loss = 0, trades = 0, wins = 0;
+        entries.forEach(h => {
+            if (h.kind !== "trade") return;
+            trades += 1;
+            if (h.pnlValue >= 0) { profit += h.pnlValue; wins += 1; }
+            else loss += Math.abs(h.pnlValue);
+        });
+        const net = profit - loss;
+
+        this.setBalance(document.getElementById("report-profit"), profit);
+        this.setBalance(document.getElementById("report-loss"), loss);
+        const netEl = document.getElementById("report-net");
+        netEl.textContent = (net >= 0 ? "+ " : "- ") + this.formatCurrency(Math.abs(net));
+        netEl.className = net >= 0 ? "text-profit" : "text-loss";
+        document.getElementById("report-trades-info").textContent =
+            trades > 0 ? `${trades} trade • ${Math.round((wins / trades) * 100)}% win rate` : "Belum ada trade di periode ini.";
+
+        const byAccount = {};
+        entries.forEach(h => {
+            if (h.kind !== "trade") return;
+            if (!byAccount[h.accountId]) byAccount[h.accountId] = { name: h.accountName, net: 0, trades: 0 };
+            byAccount[h.accountId].net += h.pnlValue;
+            byAccount[h.accountId].trades += 1;
+        });
+        const accContainer = document.getElementById("report-account-breakdown");
+        accContainer.innerHTML = "";
+        const accKeys = Object.keys(byAccount);
+        if (accKeys.length === 0) {
+            accContainer.innerHTML = '<p class="empty-state">Belum ada transaksi di periode ini.</p>';
+        } else {
+            accKeys.forEach(id => {
+                const a = byAccount[id];
+                const cls = a.net >= 0 ? "text-profit" : "text-loss";
+                const card = document.createElement("div");
+                card.className = "history-card";
+                card.innerHTML = `
+                    <div class="hist-left">
+                        <span class="hist-pair">${a.name}</span>
+                        <span class="hist-time">${a.trades} trade</span>
+                    </div>
+                    <span class="hist-pnl ${cls}">${a.net >= 0 ? "+ " : "- "}${this.formatCurrency(Math.abs(a.net))}</span>
+                `;
+                accContainer.appendChild(card);
+            });
+        }
+
+        const listContainer = document.getElementById("report-history-list");
+        listContainer.innerHTML = "";
+        if (entries.length === 0) {
+            listContainer.innerHTML = '<p class="empty-state">Belum ada transaksi di periode ini.</p>';
+            return;
+        }
+        const sorted = entries.slice().sort((a, b) => b.timestamp - a.timestamp);
+        sorted.forEach(entry => {
+            const card = document.createElement("div");
+            card.className = "history-card";
+            const pnlClass = entry.pnlValue >= 0 ? "text-profit" : "text-loss";
+            const psychHtml = entry.mood
+                ? `<div style="margin-top:8px;"><span class="mood-badge">${entry.mood}</span>${(entry.reasons || []).map(r => `<span class="reason-tag">${r}</span>`).join("")}</div>`
+                : "";
+            card.innerHTML = `
+                <div class="hist-left" style="flex:1;">
+                    <span class="hist-pair">${entry.label} <span class="hist-badge ${entry.badgeClass}">${entry.badgeText}</span></span>
+                    <span class="hist-time">${entry.accountName} • ${entry.date}, ${entry.time}</span>
+                    ${psychHtml}
+                </div>
+                <span class="hist-pnl ${pnlClass}">${entry.pnlValue >= 0 ? "+ " : "- "}${this.formatCurrency(Math.abs(entry.pnlValue))}</span>
+            `;
+            listContainer.appendChild(card);
+        });
+    },
+
+    // ============================================
     // RENDER — HOME
     // ============================================
     renderHome() {
@@ -767,30 +900,83 @@ const app = {
         const container = document.getElementById("history-container");
         container.innerHTML = "";
         if (!acc || acc.history.length === 0) { container.innerHTML = '<p class="empty-state">Belum ada transaksi.</p>'; return; }
-        const sorted = [...acc.history].sort((a, b) => b.timestamp - a.timestamp);
-        sorted.forEach(entry => {
-            const card = document.createElement("div");
-            card.className = "history-card";
-            const pnlClass = entry.pnlValue >= 0 ? "text-profit" : "text-loss";
-            const psychHtml = entry.mood
-                ? `<div style="margin-top:8px;">
-                       <span class="mood-badge">${entry.mood}</span>
-                       ${(entry.reasons || []).map(r => `<span class="reason-tag">${r}</span>`).join("")}
-                       ${entry.reasonNote ? `<p style="margin-top:6px; font-size:0.8rem; color:var(--text-secondary); font-style:italic;">"${entry.reasonNote}"</p>` : ""}
-                   </div>`
-                : "";
-            card.innerHTML = `
-                <div class="hist-left" style="flex:1;">
-                    <span class="hist-pair">${entry.label} <span class="hist-badge ${entry.badgeClass}">${entry.badgeText}</span></span>
-                    <span class="hist-time">${entry.date}, ${entry.time}</span>
-                    ${psychHtml}
+
+        // Kelompokin per minggu (Senin-Minggu)
+        const groups = {};
+        acc.history.forEach(entry => {
+            const mondayTs = this.getMonday(new Date(entry.timestamp)).getTime();
+            if (!groups[mondayTs]) groups[mondayTs] = [];
+            groups[mondayTs].push(entry);
+        });
+
+        const currentWeekTs = this.getMonday(new Date()).getTime();
+        const fmt = d => `${d.getDate()} ${d.toLocaleString("id-ID", { month: "short" })}`;
+
+        Object.keys(groups).map(Number).sort((a, b) => b - a).forEach(mondayTs => {
+            const entries = groups[mondayTs].sort((a, b) => b.timestamp - a.timestamp);
+            let profit = 0, loss = 0, trades = 0;
+            entries.forEach(e => {
+                if (e.kind !== "trade") return;
+                trades += 1;
+                if (e.pnlValue >= 0) profit += e.pnlValue; else loss += Math.abs(e.pnlValue);
+            });
+            const net = profit - loss;
+            const isCurrent = mondayTs === currentWeekTs;
+            const sundayDate = new Date(mondayTs); sundayDate.setDate(sundayDate.getDate() + 6);
+            const label = isCurrent ? "Minggu Ini" : `${fmt(new Date(mondayTs))} - ${fmt(sundayDate)}`;
+
+            const groupWrap = document.createElement("div");
+            groupWrap.className = "week-group";
+
+            const header = document.createElement("div");
+            header.className = "week-group-header";
+            header.innerHTML = `
+                <div>
+                    <span class="week-group-title">${label}</span>
+                    <span class="week-group-sub">${trades} trade</span>
                 </div>
-                <div class="hist-actions">
-                    <span class="hist-pnl ${pnlClass}">${entry.pnlValue >= 0 ? "+ " : "- "}${this.formatCurrency(Math.abs(entry.pnlValue))}</span>
-                    <button class="hist-delete" onclick="app.confirmDeleteEntry(${entry.timestamp})" aria-label="Hapus transaksi"><i class="fa-solid fa-trash"></i></button>
+                <div style="display:flex; align-items:center; gap:10px;">
+                    <span class="${net >= 0 ? "text-profit" : "text-loss"}" style="font-weight:700;">${net >= 0 ? "+ " : "- "}${this.formatCurrency(Math.abs(net))}</span>
+                    <i class="fa-solid fa-chevron-down week-group-chevron${isCurrent ? " rotated" : ""}"></i>
                 </div>
             `;
-            container.appendChild(card);
+
+            const body = document.createElement("div");
+            body.className = "week-group-body" + (isCurrent ? "" : " collapsed");
+
+            entries.forEach(entry => {
+                const card = document.createElement("div");
+                card.className = "history-card";
+                const pnlClass = entry.pnlValue >= 0 ? "text-profit" : "text-loss";
+                const psychHtml = entry.mood
+                    ? `<div style="margin-top:8px;">
+                           <span class="mood-badge">${entry.mood}</span>
+                           ${(entry.reasons || []).map(r => `<span class="reason-tag">${r}</span>`).join("")}
+                           ${entry.reasonNote ? `<p style="margin-top:6px; font-size:0.8rem; color:var(--text-secondary); font-style:italic;">"${entry.reasonNote}"</p>` : ""}
+                       </div>`
+                    : "";
+                card.innerHTML = `
+                    <div class="hist-left" style="flex:1;">
+                        <span class="hist-pair">${entry.label} <span class="hist-badge ${entry.badgeClass}">${entry.badgeText}</span></span>
+                        <span class="hist-time">${entry.date}, ${entry.time}</span>
+                        ${psychHtml}
+                    </div>
+                    <div class="hist-actions">
+                        <span class="hist-pnl ${pnlClass}">${entry.pnlValue >= 0 ? "+ " : "- "}${this.formatCurrency(Math.abs(entry.pnlValue))}</span>
+                        <button class="hist-delete" onclick="app.confirmDeleteEntry(${entry.timestamp})" aria-label="Hapus transaksi"><i class="fa-solid fa-trash"></i></button>
+                    </div>
+                `;
+                body.appendChild(card);
+            });
+
+            header.onclick = () => {
+                body.classList.toggle("collapsed");
+                header.querySelector(".week-group-chevron").classList.toggle("rotated");
+            };
+
+            groupWrap.appendChild(header);
+            groupWrap.appendChild(body);
+            container.appendChild(groupWrap);
         });
     },
 
@@ -989,14 +1175,22 @@ const app = {
         this.openSheet({
             title: "Pengaturan Akun",
             message: "Kurs dipakai untuk konversi USD ke Rupiah di akun ini.",
-            fields: [{ id: "rate", label: "Kurs 1 USD = Rp", type: "text", inputmode: "numeric", placeholder: String(j.exchangeRate) }],
+            fields: [
+                { id: "name", label: "Nama Akun", type: "text", value: acc.name },
+                { id: "rate", label: "Kurs 1 USD = Rp", type: "text", inputmode: "numeric", placeholder: String(j.exchangeRate) }
+            ],
             confirmLabel: "Simpan",
             onConfirm: values => {
                 const rate = this.parseAmount(values.rate);
                 if (rate === null || rate <= 0) return "Masukkan kurs yang valid.";
+                const newName = values.name.trim();
+                if (!newName) return "Nama akun tidak boleh kosong.";
+                acc.name = newName;
                 j.exchangeRate = rate;
                 this.saveState();
                 this.renderJournal();
+                this.renderTradingHub();
+                this.renderTradingAccountsList();
                 this.toast("Pengaturan disimpan ✨");
                 return null;
             }
