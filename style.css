@@ -1,40 +1,92 @@
 /* =========================
    CSS VARIABLES & THEMING
+   Tema: "hitam hangat" (gelap kecokelatan lembut) + aksen yang bisa dipilih di Setelan
+   Aksen = html[data-accent], mode = html[data-theme="dark"] (tanpa atribut = terang)
 ========================= */
 :root {
-    /* Light Theme (Default fallback but toggled) */
-    --bg-color: #f8f9fa;
-    --bg-rgb: 248, 249, 250;
-    --surface-color: #ffffff;
-    --surface-rgb: 255, 255, 255;
-    --text-primary: #1a1a1a;
-    --text-secondary: #757575;
-    --primary-color: #f4b400; /* Golden Yellow */
-    --primary-hover: #e4a400;
-    --profit-color: #00c853;
-    --profit-bg: rgba(0, 200, 83, 0.1);
-    --loss-color: #ff3d00;
-    --loss-bg: rgba(255, 61, 0, 0.1);
-    --border-color: rgba(0, 0, 0, 0.05);
-    --shadow: 0 10px 40px rgba(0, 0, 0, 0.04);
+    /* Terang (kertas hangat) */
+    --bg-color: #f4efe6;
+    --bg-rgb: 244, 239, 230;
+    --surface-color: #fbf8f2;
+    --surface-rgb: 251, 248, 242;
+    --surface-2: #efe9de;
+    --text-primary: #26211a;
+    --text-secondary: #7b7261;
+    --profit-color: #12935a;
+    --profit-bg: rgba(18, 147, 90, 0.12);
+    --loss-color: #d9433c;
+    --loss-bg: rgba(217, 67, 60, 0.1);
+    --border-color: rgba(70, 50, 20, 0.09);
+    --shadow: 0 1px 0 rgba(255, 255, 255, 0.8) inset, 0 12px 26px -16px rgba(80, 55, 20, 0.35);
+    --sheen: transparent;
+    --inset-bg: rgba(70, 50, 20, 0.07);
+    --inset-shadow: inset 0 2px 5px rgba(70, 50, 20, 0.18);
+    --font-text: "DM Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+    --font-display: "DM Sans", system-ui, sans-serif;
+
+    /* Aksen default: cyan */
+    --primary-color: #22cfe8;
+    --primary-hover: #14b9d1;
+    --primary-rgb: 34, 207, 232;
+    --on-primary: #03232a;
+    --ink-d: #62e4f6; /* teks/ikon aksen di tema gelap */
+    --ink-l: #0a7a90; /* teks/ikon aksen di tema terang */
+    --primary-ink: var(--ink-l);
 }
 
 [data-theme="dark"] {
-    /* Premium Dark Theme */
-    --bg-color: #0d0d0d;
-    --bg-rgb: 13, 13, 13;
-    --surface-color: #161616;
-    --surface-rgb: 22, 22, 22;
-    --text-primary: #ffffff;
-    --text-secondary: #a0a0a0;
-    --primary-color: #ffd700;
-    --primary-hover: #ffc400;
-    --profit-color: #00e676;
-    --profit-bg: rgba(0, 230, 118, 0.15);
-    --loss-color: #ff5252;
-    --loss-bg: rgba(255, 82, 82, 0.15);
-    --border-color: rgba(255, 255, 255, 0.03);
-    --shadow: 0 16px 40px rgba(0, 0, 0, 0.4);
+    /* Hitam hangat ala PocketOS */
+    --bg-color: #171612;
+    --bg-rgb: 23, 22, 18;
+    --surface-color: #211f1b;
+    --surface-rgb: 33, 31, 27;
+    --surface-2: #1b1a16;
+    --text-primary: #f1ece2;
+    --text-secondary: #a49c8c;
+    --profit-color: #52d9a0;
+    --profit-bg: rgba(82, 217, 160, 0.14);
+    --loss-color: #ff6f6a;
+    --loss-bg: rgba(255, 111, 106, 0.14);
+    --border-color: rgba(255, 238, 210, 0.06);
+    --shadow: 0 1px 0 rgba(255, 255, 255, 0.035) inset, 0 16px 32px -14px rgba(0, 0, 0, 0.7);
+    --sheen: rgba(255, 240, 215, 0.04);
+    --inset-bg: rgba(0, 0, 0, 0.32);
+    --inset-shadow: inset 0 2px 8px rgba(0, 0, 0, 0.55);
+    --primary-ink: var(--ink-d);
+}
+
+/* Preset aksen (cyan = default di :root). Dipilih lewat Setelan, tersimpan di html[data-accent] */
+[data-accent="blue"] {
+    --primary-color: #4d8dff;
+    --primary-hover: #3a7bf0;
+    --primary-rgb: 77, 141, 255;
+    --on-primary: #061633;
+    --ink-d: #8db4ff;
+    --ink-l: #1f56c9;
+}
+[data-accent="violet"] {
+    --primary-color: #9b7bff;
+    --primary-hover: #8662f5;
+    --primary-rgb: 155, 123, 255;
+    --on-primary: #120a33;
+    --ink-d: #bfa9ff;
+    --ink-l: #5b3fe0;
+}
+[data-accent="coral"] {
+    --primary-color: #ff8466;
+    --primary-hover: #f56d4d;
+    --primary-rgb: 255, 132, 102;
+    --on-primary: #2a0d05;
+    --ink-d: #ffa88f;
+    --ink-l: #c2410c;
+}
+[data-accent="gold"] {
+    --primary-color: #f0be4a;
+    --primary-hover: #e0ab2f;
+    --primary-rgb: 240, 190, 74;
+    --on-primary: #2a1c00;
+    --ink-d: #f6d27c;
+    --ink-l: #946500;
 }
 
 /* =========================
@@ -44,8 +96,16 @@
     margin: 0;
     padding: 0;
     box-sizing: border-box;
-    font-family: "Plus Jakarta Sans", sans-serif;
     -webkit-tap-highlight-color: transparent;
+}
+
+html,
+body,
+button,
+input,
+textarea,
+select {
+    font-family: var(--font-text);
 }
 
 body {
@@ -157,7 +217,7 @@ body {
 }
 
 .menu-items li:hover {
-    color: var(--primary-color);
+    color: var(--primary-ink);
     background: var(--border-color);
 }
 .menu-items li i {
@@ -286,7 +346,7 @@ body {
 .ripple {
     position: absolute;
     border-radius: 50%;
-    background: rgba(255, 215, 0, 0.25);
+    background: rgba(var(--primary-rgb), 0.25);
     transform: scale(0);
     animation: rippleAnim 0.6s ease-out;
     pointer-events: none;
@@ -321,7 +381,7 @@ body {
     right: -15%;
     width: 280px;
     height: 280px;
-    background: radial-gradient(circle, rgba(255, 215, 0, 0.22), transparent 65%);
+    background: radial-gradient(circle, rgba(var(--primary-rgb), 0.22), transparent 65%);
     filter: blur(8px);
     pointer-events: none;
     animation: glowPulse 4s ease-in-out infinite;
@@ -331,7 +391,7 @@ body {
     50% { opacity: 1; }
 }
 #home-total {
-    background: linear-gradient(135deg, var(--primary-color) 0%, #fff8d6 55%, var(--primary-color) 100%);
+    background: linear-gradient(120deg, var(--text-primary) 10%, var(--primary-ink) 100%);
     -webkit-background-clip: text;
     background-clip: text;
     color: transparent;
@@ -366,8 +426,8 @@ body {
     margin-bottom: 12px;
 }
 .primary-icon {
-    background: rgba(255, 215, 0, 0.1);
-    color: var(--primary-color);
+    background: rgba(var(--primary-rgb), 0.1);
+    color: var(--primary-ink);
 }
 
 /* Badges & Colors */
@@ -395,7 +455,7 @@ body {
     color: var(--loss-color) !important;
 }
 .text-accent {
-    color: var(--primary-color);
+    color: var(--primary-ink);
 }
 
 /* Summary List */
@@ -440,8 +500,8 @@ body {
     color: var(--text-secondary);
 }
 .primary-icon-sm {
-    background: rgba(255, 215, 0, 0.1);
-    color: var(--primary-color);
+    background: rgba(var(--primary-rgb), 0.1);
+    color: var(--primary-ink);
 }
 .summary-item p {
     color: var(--text-secondary);
@@ -547,7 +607,7 @@ body {
 }
 .btn-primary {
     background: var(--primary-color);
-    color: #000;
+    color: var(--on-primary);
 }
 .btn-secondary {
     background: var(--surface-color);
@@ -787,7 +847,7 @@ body {
     height: 64px;
     border-radius: 20px;
     background: var(--primary-color);
-    color: #000;
+    color: var(--on-primary);
     font-size: 1.6rem;
     display: flex;
     align-items: center;
@@ -919,7 +979,7 @@ body {
 }
 .segmented-option.active {
     background: var(--primary-color);
-    color: #000;
+    color: var(--on-primary);
 }
 
 .sheet-message {
@@ -1218,7 +1278,7 @@ body {
 }
 .checklist-option.active {
     background: var(--primary-color);
-    color: #000;
+    color: var(--on-primary);
     border-color: var(--primary-color);
 }
 
@@ -1306,3 +1366,374 @@ textarea.sheet-input {
 .week-group-body.collapsed {
     display: none;
 }
+/* =========================
+   RINGKASAN ALA MT5
+========================= */
+.mt5-row {
+    display: flex;
+    align-items: baseline;
+    gap: 10px;
+    padding: 7px 0;
+    font-size: 0.95rem;
+}
+.mt5-label {
+    font-weight: 700;
+    white-space: nowrap;
+}
+.mt5-dots {
+    flex: 1;
+    min-width: 12px;
+    border-bottom: 2px dotted var(--text-secondary);
+    opacity: 0.35;
+    transform: translateY(-3px);
+}
+.mt5-value {
+    font-weight: 700;
+    white-space: nowrap;
+    font-variant-numeric: tabular-nums;
+}
+.mt5-total {
+    margin-top: 6px;
+    padding-top: 12px;
+    border-top: 1px solid var(--border-color);
+    font-size: 1.05rem;
+}
+.mt5-total .mt5-value {
+    color: var(--primary-ink);
+}
+
+/* =========================
+   NAVIGASI BAWAH
+========================= */
+.views-wrapper {
+    padding-bottom: 130px;
+}
+.bottom-nav {
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: calc(14px + env(safe-area-inset-bottom));
+    margin: 0 auto;
+    width: calc(100% - 32px);
+    max-width: 448px;
+    display: flex;
+    gap: 4px;
+    padding: 8px;
+    background: rgba(var(--surface-rgb), 0.85);
+    backdrop-filter: blur(18px);
+    -webkit-backdrop-filter: blur(18px);
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    border-radius: 32px;
+    box-shadow: 0 12px 40px rgba(0, 0, 0, 0.45);
+    z-index: 80;
+}
+.bn-item {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+    padding: 10px 4px;
+    border: none;
+    border-radius: 24px;
+    background: transparent;
+    color: var(--text-secondary);
+    font-size: 0.7rem;
+    font-weight: 700;
+    cursor: pointer;
+    transition: background 0.25s ease, color 0.25s ease;
+}
+.bn-item i {
+    font-size: 1.2rem;
+}
+.bn-item.active {
+    background: rgba(var(--primary-rgb), 0.12);
+    color: var(--primary-ink);
+}
+.toast {
+    bottom: calc(110px + env(safe-area-inset-bottom));
+}
+
+/* =========================
+   KARTU AKUN (foto)
+========================= */
+.acc-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+}
+.acc-card {
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    padding: 14px;
+    background: var(--surface-color);
+    border: 1px solid var(--border-color);
+    border-radius: 24px;
+    box-shadow: var(--shadow);
+    cursor: pointer;
+    transition: transform 0.15s ease;
+}
+.acc-card:active {
+    transform: scale(0.98);
+}
+.acc-photo {
+    width: 100%;
+    aspect-ratio: 16 / 10;
+    border-radius: 16px;
+    object-fit: cover;
+    display: block;
+}
+.acc-photo-empty {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(var(--primary-rgb), 0.08);
+    color: var(--primary-ink);
+    font-size: 1.8rem;
+}
+.acc-name {
+    font-weight: 700;
+    font-size: 1rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.acc-balance {
+    font-weight: 800;
+    font-size: 1.05rem;
+    font-variant-numeric: tabular-nums;
+}
+.acc-chip {
+    align-self: flex-start;
+    padding: 4px 10px;
+    border-radius: 100px;
+    font-size: 0.72rem;
+    font-weight: 700;
+}
+.acc-add {
+    align-items: center;
+    justify-content: center;
+    min-height: 170px;
+    border: 2px dashed var(--text-secondary);
+    background: transparent;
+    box-shadow: none;
+    color: var(--text-secondary);
+    font-weight: 700;
+}
+.acc-add i {
+    font-size: 1.6rem;
+}
+.acc-hint {
+    grid-column: 1 / -1;
+}
+.header-avatar {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    object-fit: cover;
+    border: 1px solid var(--border-color);
+}
+
+/* =========================
+   POSISI SEPANJANG WAKTU
+========================= */
+.verdict-badge {
+    width: 100%;
+    justify-content: center;
+    margin: 4px 0 10px;
+    padding: 10px 12px;
+}
+.lifetime-note {
+    margin-top: 12px;
+    font-size: 0.75rem;
+    line-height: 1.5;
+    color: var(--text-secondary);
+}
+
+/* =========================
+   MENU SHEET & UPLOAD FOTO
+========================= */
+.sheet-menu-item {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    width: 100%;
+    padding: 14px;
+    border: 1px solid var(--border-color);
+    border-radius: 18px;
+    background: rgba(var(--bg-rgb), 0.6);
+    color: var(--text-primary);
+    text-align: left;
+    cursor: pointer;
+}
+.sheet-menu-item:active {
+    opacity: 0.8;
+}
+.sheet-menu-icon {
+    width: 42px;
+    height: 42px;
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 14px;
+    background: rgba(var(--primary-rgb), 0.1);
+    color: var(--primary-ink);
+}
+.sheet-menu-text {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+.sheet-menu-text b {
+    font-size: 0.95rem;
+}
+.sheet-menu-text small {
+    font-size: 0.78rem;
+    color: var(--text-secondary);
+}
+.sheet-menu-arrow {
+    color: var(--text-secondary);
+    font-size: 0.8rem;
+}
+.photo-field {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+}
+.photo-preview {
+    width: 96px;
+    height: 60px;
+    flex-shrink: 0;
+    border-radius: 14px;
+    overflow: hidden;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(var(--primary-rgb), 0.08);
+    color: var(--primary-ink);
+    font-size: 1.4rem;
+}
+.photo-preview img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+.photo-actions {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+.photo-actions .btn {
+    padding: 10px 14px;
+    font-size: 0.85rem;
+    border-radius: 12px;
+}
+[data-theme="dark"] .sheet-input {
+    color-scheme: dark;
+}
+
+
+/* =========================
+   TEMA HANGAT (rasa PocketOS)
+========================= */
+.card,
+.acc-card {
+    border-radius: 28px;
+    background-image: linear-gradient(180deg, var(--sheen), transparent 55%);
+}
+.acc-add {
+    background-image: none;
+}
+.section-title {
+    font-size: 0.8rem;
+    font-weight: 700;
+    letter-spacing: 0.09em;
+    text-transform: uppercase;
+}
+.profile-btn,
+.back-btn {
+    box-shadow: var(--shadow);
+}
+.btn {
+    border-radius: 18px;
+}
+.btn-primary {
+    box-shadow: 0 10px 22px -12px rgba(var(--primary-rgb), 0.75);
+}
+.bottom-nav {
+    border: 1px solid var(--border-color);
+    background: rgba(var(--surface-rgb), 0.9);
+}
+.bn-item.active {
+    background: var(--inset-bg);
+    box-shadow: var(--inset-shadow);
+    color: var(--primary-ink);
+}
+
+/* =========================
+   PILIHAN TEMA (Setelan)
+========================= */
+.swatch-row {
+    display: flex;
+    justify-content: space-between;
+    gap: 6px;
+}
+.swatch {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+    padding: 4px 0;
+    border: none;
+    background: none;
+    color: var(--text-secondary);
+    font-size: 0.72rem;
+    font-weight: 700;
+    cursor: pointer;
+}
+.swatch span {
+    width: 46px;
+    height: 46px;
+    border-radius: 50%;
+    background: var(--sw);
+    box-shadow: 0 8px 18px -8px var(--sw);
+    transition: box-shadow 0.2s ease, transform 0.15s ease;
+}
+.swatch:active span {
+    transform: scale(0.94);
+}
+.swatch.active {
+    color: var(--text-primary);
+}
+.swatch.active span {
+    box-shadow: 0 0 0 3px var(--bg-color), 0 0 0 5px var(--sw);
+}
+
+/* saklar di mode terang: trek putih transparan gak kelihatan di atas krem */
+html:not([data-theme="dark"]) .switch-slider {
+    background-color: rgba(120, 110, 90, 0.35);
+}
+
+/* ===== PICKER WARNA BEBAS ===== */
+.swatch-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:14px 6px}
+.swatch-grid .swatch{min-width:0;font-size:.68rem;text-align:center}
+.swatch-bg span{box-shadow:inset 0 0 0 1.5px rgba(128,128,128,.45)}
+.swatch-custom span{background:conic-gradient(#ff5f6d,#ffc371,#f0e130,#4be37a,#22cfe8,#4d8dff,#9b7bff,#ff7ab8,#ff5f6d);color:#fff;font-weight:800;font-size:1.1rem;display:flex;align-items:center;justify-content:center;text-shadow:0 1px 3px rgba(0,0,0,.6)}
+.custom-row{display:flex;gap:12px;align-items:center;margin-top:16px}
+.custom-row input[type=color]{width:52px;height:46px;padding:0;border:0;border-radius:14px;background:none;cursor:pointer;flex:none}
+.custom-row input[type=color]::-webkit-color-swatch-wrapper{padding:0}
+.custom-row input[type=color]::-webkit-color-swatch{border:0;border-radius:14px}
+.custom-row input[type=color]::-moz-color-swatch{border:0;border-radius:14px}
+.hex-input{flex:1;min-width:0;font-family:ui-monospace,Menlo,monospace}
+.color-hint{font-size:.78rem;color:var(--warning-color,#e0a030);margin-top:8px;min-height:0}
+.color-hint:empty{display:none}
+.is-hidden{display:none !important}
+.swatch-custom{--sw:#9b7bff}
+.hex-input{height:46px;padding:0 14px;border-radius:14px;border:1px solid var(--border-color);background:var(--inset-bg,var(--surface-2));color:var(--text-primary);font-size:.95rem;outline:none}
+.hex-input:focus{border-color:var(--primary-color)}

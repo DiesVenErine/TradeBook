@@ -8,64 +8,36 @@
         />
         <title>TradeBook | Premium Dashboard</title>
         <link rel="manifest" href="manifest.json" />
-        <meta name="theme-color" content="#0d0d0d" />
+        <meta name="theme-color" content="#171612" />
         <link rel="apple-touch-icon" href="icon-192.png" />
         <link
-            href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap"
+            href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800&display=swap"
             rel="stylesheet"
         />
         <link
             rel="stylesheet"
             href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"
         />
+        <script>
+            /* pasang tema & aksen tersimpan sebelum halaman digambar, biar gak kedip */
+            try {
+                var p = JSON.parse(localStorage.getItem("tradebook_prefs") || "{}");
+                var de = document.documentElement;
+                if (p.theme === "light") de.removeAttribute("data-theme");
+                if (p.accent) de.setAttribute("data-accent", p.accent);
+                if (p.vars && typeof p.vars === "object") {
+                    for (var k in p.vars) if (/^--[a-z0-9-]+$/.test(k)) de.style.setProperty(k, String(p.vars[k]).replace(/[;{}]/g, ""));
+                }
+                if (/^#[0-9a-f]{6}$/i.test(p.base || "")) {
+                    document.querySelector('meta[name="theme-color"]').setAttribute("content", p.base);
+                }
+            } catch (e) {}
+        </script>
         <link rel="stylesheet" href="style.css" />
     </head>
     <body>
-        <div class="overlay" id="overlay"></div>
-
-        <nav class="sidebar" id="sidebar">
-            <div class="sidebar-header">
-                <h2>
-                    Trade<span class="text-accent">Book</span>
-                    <i
-                        class="fa-solid fa-bolt"
-                        style="color: var(--primary-color)"
-                    ></i>
-                </h2>
-            </div>
-            <ul class="menu-items">
-                <li onclick="app.navigate('home')">
-                    <i class="fa-solid fa-house"></i> Dashboard
-                </li>
-                <li onclick="app.navigate('investment')">
-                    <i class="fa-solid fa-chart-pie"></i> Investment
-                </li>
-                <li onclick="app.navigate('trading-accounts')">
-                    <i class="fa-solid fa-chart-line"></i> Trading
-                </li>
-                <li onclick="app.navigate('stats')">
-                    <i class="fa-solid fa-chart-simple"></i> Statistics
-                </li>
-                <li onclick="app.navigate('settings')">
-                    <i class="fa-solid fa-gear"></i> Settings
-                </li>
-                <li onclick="app.navigate('about')">
-                    <i class="fa-solid fa-circle-info"></i> About
-                </li>
-                <li class="menu-danger" onclick="app.confirmResetAll()">
-                    <i class="fa-solid fa-trash-can"></i> Reset Semua Data
-                </li>
-            </ul>
-            <div class="theme-toggle" onclick="app.toggleTheme()">
-                <i class="fa-solid fa-moon"></i> Toggle Theme
-            </div>
-        </nav>
-
         <main class="app-container">
             <header class="top-bar">
-                <button class="icon-btn" onclick="app.toggleMenu()">
-                    <i class="fa-solid fa-bars"></i>
-                </button>
                 <h1 class="logo">Trade<span class="text-accent">Book</span></h1>
                 <button class="icon-btn profile-btn" onclick="app.navigate('settings')">
                     <i class="fa-solid fa-user"></i>
@@ -73,70 +45,37 @@
             </header>
 
             <div class="views-wrapper">
+                <!-- ================= HOME ================= -->
                 <section id="view-home" class="view active">
                     <div class="greeting-section">
                         <p class="date" id="current-date">Loading date...</p>
                         <h2 class="greeting">
-                            Good <span class="text-accent">Evening!</span> ✨
+                            Good <span class="text-accent" id="greeting-word">Evening!</span> ✨
                         </h2>
                     </div>
 
                     <div class="card balance-card main-balance">
-                        <p class="card-subtitle">Total Balance</p>
+                        <p class="card-subtitle">Total Saldo (Cent)</p>
                         <div class="balance-row">
-                            <h1
-                                class="balance-amount"
-                                id="home-total"
-                                data-value="0"
-                            >
-                                Rp0
-                            </h1>
-                            <button
-                                class="icon-btn toggle-eye"
-                                onclick="app.toggleBalance()"
-                            >
+                            <h1 class="balance-amount" id="home-total" data-value="0">0.00 USC</h1>
+                            <button class="icon-btn toggle-eye" onclick="app.toggleBalance()">
                                 <i class="fa-solid fa-eye"></i>
                             </button>
                         </div>
                         <div class="badge profit" id="home-total-badge">
-                            <i class="fa-solid fa-arrow-trend-up"></i> +0.0%
-                            This Month
+                            <i class="fa-solid fa-arrow-trend-up"></i> + 0.00 USC Bulan Ini
                         </div>
                     </div>
 
-                    <div class="grid-2">
-                        <div
-                            class="card clickable-card"
-                            onclick="app.navigate('investment')"
-                        >
-                            <div class="card-icon">
-                                <i class="fa-solid fa-vault"></i>
-                            </div>
-                            <p class="card-subtitle">Investment</p>
-                            <h3
-                                class="card-title balance-amount"
-                                id="home-investment"
-                                data-value="0"
-                            >
-                                Rp0
-                            </h3>
-                        </div>
-                        <div
-                            class="card clickable-card"
-                            onclick="app.navigate('trading-accounts')"
-                        >
-                            <div class="card-icon primary-icon">
-                                <i class="fa-solid fa-chart-line"></i>
-                            </div>
-                            <p class="card-subtitle">Trading</p>
-                            <h3
-                                class="card-title balance-amount"
-                                id="home-trading"
-                                data-value="0"
-                            >
-                                Rp0
-                            </h3>
-                        </div>
+                    <div class="card" style="margin-bottom: 8px">
+                        <p class="card-subtitle">Posisi Sepanjang Waktu • semua akun</p>
+                        <div id="home-lifetime"></div>
+                    </div>
+
+                    <div class="section-title" style="margin-top: 24px">Ringkasan Semua Akun</div>
+                    <div class="card clickable-card" onclick="app.navigate('trading-accounts')">
+                        <p class="card-subtitle">Semua waktu • USC</p>
+                        <div id="home-mt5"></div>
                     </div>
 
                     <div class="section-title">Quick Summary</div>
@@ -148,9 +87,7 @@
                                 </div>
                                 <p>Today's Profit</p>
                             </div>
-                            <h4 class="text-profit" id="home-today-profit">
-                                + Rp0
-                            </h4>
+                            <h4 class="text-profit" id="home-today-profit">+ 0.00 USC</h4>
                         </div>
                         <div class="summary-item">
                             <div class="summary-left">
@@ -166,68 +103,69 @@
                                 <div class="summary-icon primary-icon-sm">
                                     <i class="fa-solid fa-chart-line"></i>
                                 </div>
-                                <p>Monthly Growth</p>
+                                <p>Net Bulan Ini</p>
                             </div>
-                            <h4 class="text-profit" id="home-monthly-growth">
-                                + 0.0%
-                            </h4>
+                            <h4 class="text-profit" id="home-monthly-growth">+ 0.00 USC</h4>
                         </div>
                     </div>
                 </section>
 
-                <!-- ============================================
-                     TRADING HUB — Forex only, merged with Journal
-                     (Risk Guard + Psychology + Active Positions + Stats)
-                ============================================= -->
+                <!-- ================= TRADING HUB (daftar akun) ================= -->
                 <section id="view-trading-accounts" class="view">
                     <div class="page-header">
-                        <button class="back-btn" onclick="app.navigate('home')">
-                            <i class="fa-solid fa-arrow-left"></i>
-                        </button>
                         <h2>Trading <span class="text-accent">Hub</span></h2>
                     </div>
 
                     <div class="card balance-card">
-                        <p class="card-subtitle">Total Balance (Semua Akun)</p>
-                        <h1 class="balance-amount" id="trading-accounts-total" data-value="0">Rp0</h1>
+                        <p class="card-subtitle">Total Saldo (Semua Akun)</p>
+                        <h1 class="balance-amount" id="trading-accounts-total" data-value="0">0.00 USC</h1>
                     </div>
 
-                    <button class="btn btn-primary" style="width: 100%; margin-top: 20px" onclick="app.handleAddTradingAccount()">
-                        <i class="fa-solid fa-plus"></i> Tambah Akun
-                    </button>
-                    <button class="btn btn-secondary" style="width: 100%; margin-top: 12px" onclick="app.navigateToReport()">
+                    <div class="card" style="margin-top: 16px">
+                        <p class="card-subtitle">Ringkasan Semua Akun • semua waktu (USC)</p>
+                        <div id="accounts-mt5"></div>
+                    </div>
+
+                    <button class="btn btn-secondary" style="width: 100%; margin-top: 16px" onclick="app.navigateToReport()">
                         <i class="fa-solid fa-chart-simple"></i> Lihat Laporan
                     </button>
 
-                    <div class="section-title">Daftar Akun</div>
-                    <div id="trading-accounts-list" class="category-list">
-                        <p class="empty-state">Belum ada akun trading. Tambah akun dulu, misal "Akun Harian".</p>
-                    </div>
+                    <div class="section-title">Akun Trading</div>
+                    <div id="trading-accounts-list" class="acc-grid"></div>
                 </section>
+
+                <!-- ================= DETAIL AKUN ================= -->
                 <section id="view-trading" class="view">
                     <div class="page-header">
                         <button class="back-btn" onclick="app.navigate('trading-accounts')">
                             <i class="fa-solid fa-arrow-left"></i>
                         </button>
+                        <img id="trading-account-photo" class="header-avatar" alt="" style="display: none" />
                         <h2 id="trading-account-name">Akun</h2>
-                        <button
-                            class="back-btn"
-                            style="margin-left: auto"
-                            onclick="app.handleJournalSettings()"
-                        >
+                        <button class="back-btn" style="margin-left: auto" onclick="app.handleAccountMenu()">
                             <i class="fa-solid fa-ellipsis-vertical"></i>
                         </button>
                     </div>
 
                     <div class="card balance-card">
-                        <p class="card-subtitle">Trading Balance</p>
-                        <h1
-                            class="balance-amount"
-                            id="trading-total"
-                            data-value="0"
-                        >
-                            Rp0
-                        </h1>
+                        <p class="card-subtitle">Saldo Akun</p>
+                        <h1 class="balance-amount" id="trading-total" data-value="0">0.00 USC</h1>
+                    </div>
+
+                    <!-- Ringkasan ala MT5 -->
+                    <div class="card" style="margin-top: 16px">
+                        <div class="segmented" id="acc-period-seg" style="margin-bottom: 16px">
+                            <button class="segmented-option" data-period="day" onclick="app.setAccountPeriod('day')">Hari</button>
+                            <button class="segmented-option" data-period="week" onclick="app.setAccountPeriod('week')">Minggu</button>
+                            <button class="segmented-option" data-period="month" onclick="app.setAccountPeriod('month')">Bulan</button>
+                            <button class="segmented-option active" data-period="all" onclick="app.setAccountPeriod('all')">Semua</button>
+                        </div>
+                        <div id="account-mt5"></div>
+                    </div>
+
+                    <div class="card" style="margin-top: 16px">
+                        <p class="card-subtitle">Posisi Sepanjang Waktu • akun ini</p>
+                        <div id="account-lifetime"></div>
                     </div>
 
                     <div class="card summary-card" style="margin-top: 16px">
@@ -238,7 +176,7 @@
                                 </div>
                                 <p>P/L Hari Ini</p>
                             </div>
-                            <h4 id="trading-today-pnl">+ Rp0</h4>
+                            <h4 id="trading-today-pnl">+ 0.00 USC</h4>
                         </div>
                         <div class="summary-item">
                             <div class="summary-left">
@@ -247,122 +185,74 @@
                                 </div>
                                 <p>P/L Minggu Ini</p>
                             </div>
-                            <h4 id="trading-week-pnl">+ Rp0</h4>
+                            <h4 id="trading-week-pnl">+ 0.00 USC</h4>
                         </div>
                     </div>
 
                     <div class="action-buttons" style="margin-top: 16px">
-                        <button
-                            class="btn btn-primary"
-                            onclick="app.handleDeposit()"
-                        >
-                            <i class="fa-solid fa-arrow-down"></i> Deposit
+                        <button class="btn btn-primary" onclick="app.handleDeposit()">
+                            <i class="fa-solid fa-arrow-down"></i> Deposito
                         </button>
-                        <button
-                            class="btn btn-secondary"
-                            onclick="app.handleWithdraw()"
-                        >
-                            <i class="fa-solid fa-arrow-up"></i> Withdraw
+                        <button class="btn btn-secondary" onclick="app.handleWithdraw()">
+                            <i class="fa-solid fa-arrow-up"></i> Penarikan
                         </button>
                     </div>
 
                     <!-- RISK GUARD -->
-                    <div class="card" style="margin-bottom:16px;">
-                        <p class="card-subtitle">Saldo Trading (USD)</p>
-                        <div style="display:flex; gap:10px; align-items:center;">
-                            <input type="text" inputmode="decimal" id="journal-peak-input" class="sheet-input" placeholder="" style="flex:1;">
-                            <button class="btn btn-primary" style="padding:14px 18px;" onclick="app.handleSetPeakBalance()">Set</button>
+                    <div class="card" style="margin: 16px 0">
+                        <div style="display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 8px">
+                            <span style="font-size: 0.85rem; color: var(--text-secondary); font-weight: 600">Kerugian dari Puncak Saldo (Hari Ini)</span>
+                            <span class="text-loss" style="font-weight: 800" id="journal-limit-text">Belum diatur</span>
                         </div>
-                        <p style="font-size:0.78rem; color:var(--text-secondary); margin-top:8px;">Angka ini otomatis gerak ngikutin profit/loss. Tombol "Set" cuma buat isi pertama kali atau koreksi manual.</p>
-
-                        <div style="margin-top:20px;">
-                            <div style="display:flex; justify-content:space-between; align-items:baseline; margin-bottom:8px;">
-                                <span style="font-size:0.85rem; color:var(--text-secondary); font-weight:600;">Kerugian dari Puncak Saldo</span>
-                                <span class="text-loss" style="font-weight:800;" id="journal-limit-text">Belum diatur</span>
-                            </div>
-                            <div class="health-bar-track">
-                                <div
-                                    class="health-bar-fill"
-                                    id="journal-health-fill"
-                                    style="width: 100%"
-                                ></div>
-                            </div>
-                            <div
-                                class="badge"
-                                id="journal-risk-badge"
-                                style="
-                                    margin-top: 14px;
-                                    width: 100%;
-                                    justify-content: center;
-                                "
-                            >
-                                Set saldo dulu untuk mulai tracking risiko.
-                            </div>
+                        <div class="health-bar-track">
+                            <div class="health-bar-fill" id="journal-health-fill" style="width: 100%"></div>
+                        </div>
+                        <p style="font-size: 0.78rem; color: var(--text-secondary); margin-top: 8px" id="journal-peak-info"></p>
+                        <div class="badge" id="journal-risk-badge" style="margin-top: 14px; width: 100%; justify-content: center">
+                            Catat deposito dulu untuk mulai tracking risiko.
                         </div>
                     </div>
 
-                    <button
-                        class="btn btn-primary"
-                        style="width: 100%; margin-bottom: 16px"
-                        id="journal-add-trade-btn"
-                        onclick="app.handleAddJournalTrade()"
-                    >
+                    <button class="btn btn-primary" style="width: 100%; margin-bottom: 16px" id="journal-add-trade-btn" onclick="app.handleAddJournalTrade()">
                         <i class="fa-solid fa-plus"></i> Tambah Trade Baru
                     </button>
 
                     <div class="section-title">Posisi Aktif</div>
                     <div id="journal-active-list" class="category-list">
-                        <p class="empty-state">
-                            Belum ada posisi trading aktif.
-                        </p>
+                        <p class="empty-state">Belum ada posisi trading aktif.</p>
                     </div>
 
                     <div class="section-title">Statistik Psikologi</div>
                     <div class="card">
-                        <p class="card-subtitle">
-                            Win Rate berdasarkan Alasan Entry
-                        </p>
-                        <div
-                            id="journal-stats-reason"
-                            class="legend-list"
-                            style="margin-top: 12px"
-                        ></div>
+                        <p class="card-subtitle">Win Rate berdasarkan Alasan Entry</p>
+                        <div id="journal-stats-reason" class="legend-list" style="margin-top: 12px"></div>
                     </div>
                     <div class="card" style="margin-top: 16px">
                         <p class="card-subtitle">Win Rate berdasarkan Mood</p>
-                        <div
-                            id="journal-stats-mood"
-                            class="legend-list"
-                            style="margin-top: 12px"
-                        ></div>
+                        <div id="journal-stats-mood" class="legend-list" style="margin-top: 12px"></div>
                     </div>
 
-                    <div class="section-title" style="margin-top: 32px">
-                        Riwayat Transaksi
-                    </div>
+                    <div class="section-title" style="margin-top: 32px">Riwayat Transaksi</div>
                     <div id="history-container" class="history-list">
                         <p class="empty-state">Belum ada transaksi.</p>
                     </div>
 
-                    <button
-                        class="btn btn-danger"
-                        style="width: 100%; margin-top: 32px"
-                        onclick="app.confirmDeleteTradingAccountCurrent()"
-                    >
+                    <button class="btn btn-danger" style="width: 100%; margin-top: 32px" onclick="app.confirmDeleteTradingAccountCurrent()">
                         <i class="fa-solid fa-trash-can"></i> Hapus Akun Ini
                     </button>
                 </section>
 
-              <section id="view-trading-report" class="view">
+                <!-- ================= LAPORAN ================= -->
+                <section id="view-trading-report" class="view">
                     <div class="page-header">
                         <button class="back-btn" onclick="app.navigate('trading-accounts')"><i class="fa-solid fa-arrow-left"></i></button>
                         <h2>Laporan <span class="text-accent">Trading</span></h2>
                     </div>
 
-                    <div class="card" style="margin-bottom:16px;">
-                        <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:16px;">
+                    <div class="card" style="margin-bottom: 16px">
+                        <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px">
                             <button class="back-btn" onclick="app.shiftReportPeriod(-1)"><i class="fa-solid fa-chevron-left"></i></button>
-                            <span id="report-period-label" style="font-weight:700;">-</span>
+                            <span id="report-period-label" style="font-weight: 700">-</span>
                             <button class="back-btn" onclick="app.shiftReportPeriod(1)"><i class="fa-solid fa-chevron-right"></i></button>
                         </div>
                         <div class="segmented">
@@ -371,23 +261,28 @@
                         </div>
                     </div>
 
+                    <div class="card" style="margin-bottom: 16px">
+                        <p class="card-subtitle">Ringkasan Periode (USC)</p>
+                        <div id="report-mt5"></div>
+                    </div>
+
                     <div class="grid-2">
                         <div class="card stat-card">
                             <p>Profit</p>
-                            <h3 class="text-profit balance-amount" id="report-profit" data-value="0">Rp0</h3>
+                            <h3 class="text-profit balance-amount" id="report-profit" data-value="0">0.00 USC</h3>
                         </div>
                         <div class="card stat-card">
                             <p>Loss</p>
-                            <h3 class="text-loss balance-amount" id="report-loss" data-value="0">Rp0</h3>
+                            <h3 class="text-loss balance-amount" id="report-loss" data-value="0">0.00 USC</h3>
                         </div>
                     </div>
 
-                    <div class="card" style="margin-bottom:16px;">
-                        <div style="display:flex; justify-content:space-between; align-items:center;">
-                            <span class="card-subtitle" style="margin:0;">Net Periode Ini</span>
-                            <span id="report-net" style="font-weight:800; font-size:1.1rem;">Rp0</span>
+                    <div class="card" style="margin-bottom: 16px">
+                        <div style="display: flex; justify-content: space-between; align-items: center">
+                            <span class="card-subtitle" style="margin: 0">Net Periode Ini</span>
+                            <span id="report-net" style="font-weight: 800; font-size: 1.1rem">0.00 USC</span>
                         </div>
-                        <p style="font-size:0.8rem; color:var(--text-secondary); margin-top:8px;" id="report-trades-info">0 trade</p>
+                        <p style="font-size: 0.8rem; color: var(--text-secondary); margin-top: 8px" id="report-trades-info">0 trade</p>
                     </div>
 
                     <div class="section-title">Rincian per Akun</div>
@@ -399,236 +294,32 @@
                     <div id="report-history-list" class="history-list">
                         <p class="empty-state">Belum ada transaksi di periode ini.</p>
                     </div>
-              </section>
-
-                <section id="view-investment" class="view">
-                    <div class="page-header">
-                        <button class="back-btn" onclick="app.navigate('home')">
-                            <i class="fa-solid fa-arrow-left"></i>
-                        </button>
-                        <h2>Investment</h2>
-                    </div>
-
-                    <div class="card balance-card">
-                        <p class="card-subtitle">Total Investment Balance</p>
-                        <h1
-                            class="balance-amount"
-                            id="inv-total"
-                            data-value="0"
-                        >
-                            Rp0
-                        </h1>
-                    </div>
-
-                    <button
-                        class="btn btn-primary"
-                        style="width: 100%; margin-top: 20px"
-                        onclick="app.handleAddAsset()"
-                    >
-                        <i class="fa-solid fa-plus"></i> Tambah Aset
-                    </button>
-
-                    <div class="section-title">Daftar Aset</div>
-                    <div id="investment-list" class="category-list">
-                        <p class="empty-state">
-                            Belum ada aset investment. Tambah aset dulu, misal
-                            "Solana".
-                        </p>
-                    </div>
                 </section>
 
-                <section id="view-investment-asset" class="view">
-                    <div class="page-header">
-                        <button
-                            class="back-btn"
-                            onclick="app.navigate('investment')"
-                        >
-                            <i class="fa-solid fa-arrow-left"></i>
-                        </button>
-                        <h2 id="inv-asset-title">Aset</h2>
-                        <button
-                            class="back-btn"
-                            style="margin-left: auto"
-                            onclick="app.handleBalanceCorrection()"
-                        >
-                            <i class="fa-solid fa-ellipsis-vertical"></i>
-                        </button>
-                    </div>
-
-                    <div class="centered-balance">
-                        <p class="card-subtitle" id="inv-balance-label">
-                            Saldo Exchange (Total)
-                        </p>
-                        <h1
-                            id="inv-asset-balance"
-                            class="balance-amount"
-                            data-value="0"
-                        >
-                            Rp0
-                        </h1>
-                    </div>
-
-                    <div
-                        class="card"
-                        id="inv-invest-section"
-                        style="margin: 0 0 24px"
-                    >
-                        <p class="card-subtitle" style="text-align: center">
-                            Siklus Nabung (30 Hari)
-                        </p>
-                        <div
-                            class="cycle-ring"
-                            id="inv-cycle-ring"
-                            style="--pct: 0"
-                        >
-                            <span class="cycle-ring-text" id="inv-cycle-pct"
-                                >0%</span
-                            >
-                        </div>
-                        <p
-                            style="text-align: center; font-weight: 700"
-                            id="inv-cycle-amount"
-                        >
-                            Rp0 / Rp0
-                        </p>
-                        <p
-                            style="
-                                text-align: center;
-                                color: var(--text-secondary);
-                                font-size: 0.85rem;
-                                margin-top: 4px;
-                            "
-                            id="inv-cycle-day"
-                        >
-                            Hari ke-1 dari 30
-                        </p>
-
-                        <div class="pending-row" style="margin-top: 20px">
-                            <span>Belum Ditop Up</span>
-                            <span
-                                class="text-accent"
-                                id="inv-pending-amount"
-                                style="font-weight: 800"
-                                >Rp0</span
-                            >
-                        </div>
-
-                        <button
-                            class="btn btn-primary"
-                            style="width: 100%; margin-top: 16px"
-                            onclick="app.handleTopUp()"
-                        >
-                            <i class="fa-solid fa-arrow-up-from-bracket"></i>
-                            Top Up ke Exchange
-                        </button>
-                        <button
-                            class="btn btn-secondary"
-                            style="width: 100%; margin-top: 10px"
-                            onclick="app.handleCycleSettings()"
-                        >
-                            <i class="fa-solid fa-gear"></i> Atur Target Siklus
-                        </button>
-                    </div>
-
-                    <div
-                        class="card"
-                        id="inv-savings-section"
-                        style="margin: 0 0 24px; display: none"
-                    >
-                        <p class="card-subtitle" style="text-align: center">
-                            Pengaturan Celengan
-                        </p>
-                        <label
-                            style="
-                                display: block;
-                                font-size: 0.85rem;
-                                font-weight: 600;
-                                color: var(--text-secondary);
-                                margin: 16px 0 8px;
-                            "
-                            >Minimal Nabung Harian (Rp)</label
-                        >
-                        <input
-                            type="text"
-                            inputmode="numeric"
-                            id="inv-savings-min"
-                            class="sheet-input"
-                            placeholder="3000"
-                        />
-                        <button
-                            class="btn btn-secondary"
-                            style="width: 100%; margin-top: 12px"
-                            onclick="app.handleSavingsSettings()"
-                        >
-                            <i class="fa-solid fa-gear"></i> Simpan Pengaturan
-                        </button>
-                    </div>
-
-                    <div class="action-buttons">
-                        <button
-                            class="btn btn-primary"
-                            onclick="app.handleInvestmentDeposit()"
-                        >
-                            <i class="fa-solid fa-arrow-down"></i>
-                            <span id="inv-deposit-label">Deposit</span>
-                        </button>
-                        <button
-                            class="btn btn-secondary"
-                            onclick="app.handleInvestmentWithdraw()"
-                        >
-                            <i class="fa-solid fa-arrow-up"></i>
-                            <span id="inv-withdraw-label">Withdraw</span>
-                        </button>
-                    </div>
-                    <button
-                        class="btn btn-danger"
-                        style="width: 100%; margin-top: 16px"
-                        onclick="app.confirmDeleteAsset()"
-                    >
-                        <i class="fa-solid fa-trash-can"></i> Hapus Aset Ini
-                    </button>
-
-                    <div class="section-title" style="margin-top: 32px">
-                        Riwayat Transaksi
-                    </div>
-                    <div id="investment-history-container" class="history-list">
-                        <p class="empty-state">Belum ada transaksi.</p>
-                    </div>
-                </section>
-
+                <!-- ================= STATISTIK ================= -->
                 <section id="view-stats" class="view">
                     <div class="page-header">
-                        <button class="back-btn" onclick="app.navigate('home')">
-                            <i class="fa-solid fa-arrow-left"></i>
-                        </button>
-                        <h2>Statistics</h2>
+                        <h2>Statistik</h2>
                     </div>
 
                     <div class="chart-placeholder card">
-                        <p class="card-subtitle" style="margin-bottom:16px;">Monthly Growth Overview</p>
+                        <p class="card-subtitle" style="margin-bottom: 16px">Monthly Growth Overview</p>
                         <div id="growth-chart" class="growth-chart"></div>
+                    </div>
+
+                    <div class="card" style="margin-bottom: 16px">
+                        <p class="card-subtitle">Ringkasan Bulan Ini • semua akun (USC)</p>
+                        <div id="stats-mt5"></div>
                     </div>
 
                     <div class="grid-2">
                         <div class="card stat-card">
                             <p>Total Profit</p>
-                            <h3
-                                class="text-profit balance-amount"
-                                id="stat-profit"
-                                data-value="0"
-                            >
-                                Rp0
-                            </h3>
+                            <h3 class="text-profit balance-amount" id="stat-profit" data-value="0">0.00 USC</h3>
                         </div>
                         <div class="card stat-card">
                             <p>Total Loss</p>
-                            <h3
-                                class="text-loss balance-amount"
-                                id="stat-loss"
-                                data-value="0"
-                            >
-                                Rp0
-                            </h3>
+                            <h3 class="text-loss balance-amount" id="stat-loss" data-value="0">0.00 USC</h3>
                         </div>
                         <div class="card stat-card">
                             <p>Win Rate</p>
@@ -642,11 +333,11 @@
 
                     <div class="section-title">Riwayat Bulanan</div>
 
-                    <div class="card" style="margin-bottom:16px;">
+                    <div class="card" style="margin-bottom: 16px">
                         <p class="card-subtitle">Cari Bulan Tertentu</p>
-                        <div style="display:flex; gap:10px; align-items:center;">
-                            <input type="month" id="monthly-search-input" class="sheet-input" style="flex:1;">
-                            <button class="btn btn-primary" style="padding:14px 18px;" onclick="app.searchMonthlyHistory()">Cari</button>
+                        <div style="display: flex; gap: 10px; align-items: center">
+                            <input type="month" id="monthly-search-input" class="sheet-input" style="flex: 1" />
+                            <button class="btn btn-primary" style="padding: 14px 18px" onclick="app.searchMonthlyHistory()">Cari</button>
                         </div>
                     </div>
                     <div id="monthly-search-result"></div>
@@ -656,12 +347,10 @@
                     </div>
                 </section>
 
+                <!-- ================= SETTINGS ================= -->
                 <section id="view-settings" class="view">
                     <div class="page-header">
-                        <button class="back-btn" onclick="app.navigate('home')">
-                            <i class="fa-solid fa-arrow-left"></i>
-                        </button>
-                        <h2>Settings</h2>
+                        <h2>Setelan</h2>
                     </div>
 
                     <div class="card settings-card">
@@ -671,149 +360,161 @@
                                 <p>Tampilan gelap untuk kenyamanan mata</p>
                             </div>
                             <label class="switch">
-                                <input
-                                    type="checkbox"
-                                    id="setting-theme"
-                                    checked
-                                    onchange="app.toggleTheme()"
-                                />
+                                <input type="checkbox" id="setting-theme" checked onchange="app.toggleTheme()" />
                                 <span class="switch-slider"></span>
                             </label>
                         </div>
                         <div class="settings-row">
                             <div>
                                 <h4>Sembunyikan Saldo</h4>
-                                <p>
-                                    Sembunyikan semua angka saldo secara default
-                                </p>
+                                <p>Sembunyikan semua angka saldo</p>
                             </div>
                             <label class="switch">
-                                <input
-                                    type="checkbox"
-                                    id="setting-hide-balance"
-                                    onchange="app.toggleBalance()"
-                                />
+                                <input type="checkbox" id="setting-hide-balance" onchange="app.toggleBalance()" />
                                 <span class="switch-slider"></span>
                             </label>
                         </div>
                     </div>
 
+                    <div class="section-title">Warna Aksen</div>
+                    <div class="card">
+                        <div class="swatch-grid" id="accent-picker">
+                            <button class="swatch" data-accent="cyan" style="--sw: #22cfe8" onclick="app.setAccent('cyan')"><span></span>Cyan</button>
+                            <button class="swatch" data-accent="blue" style="--sw: #4d8dff" onclick="app.setAccent('blue')"><span></span>Biru</button>
+                            <button class="swatch" data-accent="violet" style="--sw: #9b7bff" onclick="app.setAccent('violet')"><span></span>Ungu</button>
+                            <button class="swatch" data-accent="coral" style="--sw: #ff8466" onclick="app.setAccent('coral')"><span></span>Coral</button>
+                            <button class="swatch" data-accent="gold" style="--sw: #f0be4a" onclick="app.setAccent('gold')"><span></span>Emas</button>
+                            <button class="swatch swatch-custom" data-accent="custom" onclick="app.setAccent('custom')"><span>+</span>Bebas</button>
+                        </div>
+                        <div class="custom-row is-hidden" id="accent-custom">
+                            <input type="color" id="accent-color-input" aria-label="Roda warna" oninput="app.setCustomAccent(this.value)" />
+                            <input type="text" id="accent-hex-input" class="hex-input" placeholder="#ff7ab8 atau 255, 122, 184" autocomplete="off" autocapitalize="off" spellcheck="false" oninput="app.setCustomAccent(this.value)" />
+                        </div>
+                        <div class="color-hint" id="accent-hint"></div>
+                    </div>
+
+                    <div class="section-title">Warna Latar</div>
+                    <div class="card">
+                        <div class="swatch-grid" id="bg-picker">
+                            <button class="swatch swatch-bg" data-bg="warm" style="--sw: #171612" onclick="app.setBg('warm')"><span></span>Hangat</button>
+                            <button class="swatch swatch-bg" data-bg="amoled" style="--sw: #000000" onclick="app.setBg('amoled')"><span></span>Pekat</button>
+                            <button class="swatch swatch-bg" data-bg="night" style="--sw: #0c1220" onclick="app.setBg('night')"><span></span>Biru Malam</button>
+                            <button class="swatch swatch-bg" data-bg="forest" style="--sw: #0e1612" onclick="app.setBg('forest')"><span></span>Hijau Malam</button>
+                            <button class="swatch swatch-bg" data-bg="plum" style="--sw: #16101e" onclick="app.setBg('plum')"><span></span>Ungu Malam</button>
+                            <button class="swatch swatch-bg" data-bg="slate" style="--sw: #1a1b1d" onclick="app.setBg('slate')"><span></span>Abu</button>
+                            <button class="swatch swatch-bg" data-bg="cream" style="--sw: #f4efe6" onclick="app.setBg('cream')"><span></span>Krem</button>
+                            <button class="swatch swatch-bg" data-bg="snow" style="--sw: #eef1f5" onclick="app.setBg('snow')"><span></span>Putih</button>
+                            <button class="swatch swatch-custom" data-bg="custom" onclick="app.setBg('custom')"><span>+</span>Bebas</button>
+                        </div>
+                        <div class="custom-row is-hidden" id="bg-custom">
+                            <input type="color" id="bg-color-input" aria-label="Roda warna" oninput="app.setCustomBg(this.value)" />
+                            <input type="text" id="bg-hex-input" class="hex-input" placeholder="#2a1f3d atau 42, 31, 61" autocomplete="off" autocapitalize="off" spellcheck="false" oninput="app.setCustomBg(this.value)" />
+                        </div>
+                        <div class="color-hint" id="bg-hint"></div>
+                    </div>
+
                     <div class="section-title">Akun & Backup Cloud</div>
 
-                    <!-- Ditampilkan kalau BELUM login -->
                     <div class="card" id="auth-guest-section">
-                        <p style="color:var(--text-secondary); font-size:0.85rem; margin-bottom:16px;">
+                        <p style="color: var(--text-secondary); font-size: 0.85rem; margin-bottom: 16px">
                             Data kamu sekarang cuma tersimpan di HP ini. Login biar data ke-backup otomatis & bisa dibuka dari device lain.
                         </p>
                         <div class="sheet-field">
                             <label>Email</label>
-                            <input type="email" id="auth-email" class="sheet-input" placeholder="email@kamu.com">
+                            <input type="email" id="auth-email" class="sheet-input" placeholder="email@kamu.com" />
                         </div>
-                        <div class="sheet-field" style="margin-top:14px;">
+                        <div class="sheet-field" style="margin-top: 14px">
                             <label>Password</label>
-                            <input type="password" id="auth-password" class="sheet-input" placeholder="Minimal 6 karakter">
+                            <input type="password" id="auth-password" class="sheet-input" placeholder="Minimal 6 karakter" />
                         </div>
                         <p class="sheet-error" id="auth-error"></p>
-                        <button class="btn btn-primary" style="width:100%; margin-top:8px;" onclick="app.handleLogin()">Masuk</button>
-                        <button class="btn btn-secondary" style="width:100%; margin-top:10px;" onclick="app.handleSignup()">Daftar Akun Baru</button>
-                        <p style="text-align:center; margin-top:16px; font-size:0.8rem; color:var(--text-secondary);" id="auth-status"></p>
+                        <button class="btn btn-primary" style="width: 100%; margin-top: 8px" onclick="app.handleLogin()">Masuk</button>
+                        <button class="btn btn-secondary" style="width: 100%; margin-top: 10px" onclick="app.handleSignup()">Daftar Akun Baru</button>
+                        <p style="text-align: center; margin-top: 16px; font-size: 0.8rem; color: var(--text-secondary)" id="auth-status"></p>
                     </div>
 
-                    <!-- Ditampilkan kalau SUDAH login -->
-                    <div class="card" id="auth-user-section" style="display:none;">
-                        <p style="color:var(--text-secondary); font-size:0.85rem; margin-bottom:16px;">
-                            Tersambung sebagai <span id="auth-user-email" class="text-accent" style="font-weight:700;"></span> — data otomatis ke-backup.
+                    <div class="card" id="auth-user-section" style="display: none">
+                        <p style="color: var(--text-secondary); font-size: 0.85rem; margin-bottom: 16px">
+                            Tersambung sebagai <span id="auth-user-email" class="text-accent" style="font-weight: 700"></span> — data otomatis ke-backup.
                         </p>
-                        <button class="btn btn-secondary" style="width:100%;" onclick="app.handleLogout()">
+                        <button class="btn btn-secondary" style="width: 100%" onclick="app.handleLogout()">
                             <i class="fa-solid fa-arrow-right-from-bracket"></i> Keluar
+                        </button>
+                    </div>
+
+                    <div class="section-title">Lainnya</div>
+                    <div class="card">
+                        <button class="btn btn-secondary" style="width: 100%" onclick="app.navigate('about')">
+                            <i class="fa-solid fa-circle-info"></i> Tentang TradeBook
                         </button>
                     </div>
 
                     <div class="section-title">Data</div>
                     <div class="card">
-                        <button
-                            class="btn btn-danger"
-                            style="width: 100%"
-                            onclick="app.confirmResetAll()"
-                        >
-                            <i class="fa-solid fa-trash-can"></i> Reset Semua
-                            Data
+                        <button class="btn btn-danger" style="width: 100%" onclick="app.confirmResetAll()">
+                            <i class="fa-solid fa-trash-can"></i> Reset Semua Data
                         </button>
                     </div>
                 </section>
 
+                <!-- ================= ABOUT ================= -->
                 <section id="view-about" class="view">
                     <div class="page-header">
-                        <button class="back-btn" onclick="app.navigate('home')">
+                        <button class="back-btn" onclick="app.navigate('settings')">
                             <i class="fa-solid fa-arrow-left"></i>
                         </button>
                         <h2>About</h2>
                     </div>
 
-                    <div
-                        class="card"
-                        style="text-align: center; padding: 32px 24px"
-                    >
+                    <div class="card" style="text-align: center; padding: 32px 24px">
                         <div class="about-logo">
                             <i class="fa-solid fa-bolt"></i>
                         </div>
-                        <h3 style="margin: 16px 0 4px">
-                            Trade<span class="text-accent">Book</span>
-                        </h3>
-                        <p
-                            style="
-                                color: var(--text-secondary);
-                                font-size: 0.9rem;
-                            "
-                        >
-                            Versi
-                            <span class="text-accent" style="font-weight: 700"
-                                >2.0.0</span
-                            >
-                            (Neural Risk & Journal Hub)
+                        <h3 style="margin: 16px 0 4px">Trade<span class="text-accent">Book</span></h3>
+                        <p style="color: var(--text-secondary); font-size: 0.9rem">
+                            Versi <span class="text-accent" style="font-weight: 700">3.3.0</span> (Cent Trading Edition)
                         </p>
                     </div>
                     <div class="card" style="margin-top: 16px">
-                        <p
-                            style="
-                                color: var(--text-secondary);
-                                line-height: 1.6;
-                                font-size: 0.9rem;
-                            "
-                        >
-                            TradeBook adalah dashboard untuk mencatat deposit,
-                            withdraw, posisi trading Forex, risk guard trailing
-                            loss, dan jurnal psikologi trading kamu — plus
-                            tracker investment & celengan. Semua data hanya
-                            tersimpan di sesi browser ini.
+                        <p style="color: var(--text-secondary); line-height: 1.6; font-size: 0.9rem">
+                            TradeBook adalah jurnal trading untuk akun cent (USC): catat deposito, penarikan, profit, swap, dan komisi
+                            dengan ringkasan ala MT5, plus risk guard trailing loss dan jurnal psikologi trading kamu.
                         </p>
                     </div>
                 </section>
             </div>
         </main>
 
-        <!-- Bottom Sheet (replaces prompt()/alert()) -->
-        <div
-            class="sheet-overlay"
-            id="sheet-overlay"
-            onclick="app.closeSheet()"
-        ></div>
+        <!-- Navigasi Bawah -->
+        <nav class="bottom-nav" id="bottom-nav" aria-label="Navigasi utama">
+            <button class="bn-item active" data-tab="home" onclick="app.navigate('home')">
+                <i class="fa-solid fa-house"></i><span>Home</span>
+            </button>
+            <button class="bn-item" data-tab="trade" onclick="app.navigate('trading-accounts')">
+                <i class="fa-solid fa-chart-line"></i><span>Trade</span>
+            </button>
+            <button class="bn-item" data-tab="stats" onclick="app.navigate('stats')">
+                <i class="fa-solid fa-chart-simple"></i><span>Statistik</span>
+            </button>
+            <button class="bn-item" data-tab="settings" onclick="app.navigate('settings')">
+                <i class="fa-solid fa-gear"></i><span>Setelan</span>
+            </button>
+        </nav>
+
+        <!-- Bottom Sheet -->
+        <div class="sheet-overlay" id="sheet-overlay" onclick="app.closeSheet()"></div>
         <div class="bottom-sheet" id="bottom-sheet">
             <div class="sheet-handle"></div>
             <h3 class="sheet-title" id="sheet-title">Title</h3>
             <div class="sheet-body" id="sheet-body"></div>
             <p class="sheet-error" id="sheet-error"></p>
             <div class="sheet-actions">
-                <button class="btn btn-secondary" onclick="app.closeSheet()">
-                    Batal
-                </button>
-                <button class="btn btn-primary" id="sheet-confirm-btn">
-                    Konfirmasi
-                </button>
+                <button class="btn btn-secondary" onclick="app.closeSheet()">Batal</button>
+                <button class="btn btn-primary" id="sheet-confirm-btn">Konfirmasi</button>
             </div>
         </div>
 
-        <!-- Toast (replaces alert()) -->
+        <!-- Toast -->
         <div class="toast" id="toast"></div>
 
         <!-- Lockdown Overlay (Risk Guard) -->
@@ -821,14 +522,8 @@
             <div class="lockdown-box">
                 <i class="fa-solid fa-triangle-exclamation"></i>
                 <h2>REM DARURAT AKTIF!</h2>
-                <p id="lockdown-message">
-                    Max Daily Loss Tersentuh. Matikan Aplikasi & Rehat!
-                </p>
-                <button
-                    class="btn btn-secondary"
-                    style="width: 100%; margin-top: 20px"
-                    onclick="app.dismissLockdown()"
-                >
+                <p id="lockdown-message">Max Daily Loss Tersentuh. Matikan Aplikasi & Rehat!</p>
+                <button class="btn btn-secondary" style="width: 100%; margin-top: 20px" onclick="app.dismissLockdown()">
                     Saya Mengerti
                 </button>
             </div>
@@ -841,9 +536,7 @@
                 window.addEventListener("load", () => {
                     navigator.serviceWorker
                         .register("./sw.js")
-                        .catch(err =>
-                            console.log("SW registration failed:", err)
-                        );
+                        .catch(err => console.log("SW registration failed:", err));
                 });
             }
         </script>
