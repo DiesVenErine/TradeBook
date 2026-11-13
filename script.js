@@ -643,13 +643,13 @@ if (typeof acc.archived !== "boolean") acc.archived = false;
 
     // Hasil bersih = (uang yang sudah ditarik + sisa saldo) - total deposito.
     // Positif = sudah lebih dari modal, negatif = masih minus.
-    lifetimeStats(entries, legacyMaxDD) {
+    lifetimeStats(entries, legacyMaxDD, combined) {
         const s = this.summarize(entries);
         const w = this.walkDrawdown(entries);
         const legacy = legacyMaxDD || 0;
         const useLegacy = legacy > w.maxDD;
-                const moneyIn = this.round2(s.deposit + s.transferIn);
-        const moneyOut = this.round2(-s.withdraw + s.transferOut);
+                const moneyIn = this.round2(s.deposit + (combined ? 0 : s.transferIn));
+        const moneyOut = this.round2(-s.withdraw + (combined ? 0 : s.transferOut));
         return {
             moneyIn, moneyOut,
             saldo: s.saldo,
@@ -675,10 +675,10 @@ if (typeof acc.archived !== "boolean") acc.archived = false;
             </div>`;
     },
 
-    renderLifetime(containerId, entries, legacyMaxDD) {
+    renderLifetime(containerId, entries, legacyMaxDD, combined) {
         const el = document.getElementById(containerId);
         if (!el) return;
-        const L = this.lifetimeStats(entries, legacyMaxDD);
+     const L = this.lifetimeStats(entries, legacyMaxDD, combined);
         if (!L.hasData) {
             el.innerHTML = '<p class="empty-state" style="padding:8px 0;">Belum ada data. Catat deposito, atau pakai "Sesuaikan Akun Lama" di menu titik tiga akun.</p>';
             return;
@@ -690,7 +690,7 @@ if (typeof acc.archived !== "boolean") acc.archived = false;
                 ${plus ? "Sudah plus" : "Masih minus"} ${this.money(Math.abs(L.net))}
             </div>`;
         const rows =
-            this.mt5RowHTML("Uang Masuk (Deposito)", this.plain(L.moneyIn)) +
+            this.mt5RowHTML(combined ? "Uang Masuk (Deposito)" : "Uang Masuk (Depo/Transfer)", this.plain(L.moneyIn)) +
             this.mt5RowHTML("Uang Keluar + Sisa Saldo", this.plain(L.moneyOut + L.saldo)) +
             this.mt5RowHTML("Hasil Bersih", (plus ? "+" : "-") + this.plain(Math.abs(L.net)), plus ? "text-profit" : "text-loss", true) +
             this.mt5RowHTML("Drawdown Terbesar", this.plain(L.maxDD) + pct(L.maxDDPct), L.maxDD > 0.004 ? "text-loss" : "") +
@@ -1069,7 +1069,7 @@ if (typeof acc.archived !== "boolean") acc.archived = false;
         this.checkMonthRollover();
         this.setBalance(document.getElementById("home-total"), this.tradingTotal());
         this.renderMt5("home-mt5", this.combinedHistory());
-        this.renderLifetime("home-lifetime", this.combinedHistory(), this.combinedLegacyMaxDD());
+        this.renderLifetime("home-lifetime", this.combinedHistory(), this.combinedLegacyMaxDD(), true);
 
         const monthNet = this.sumMonthTrades(state.trading.monthId);
         const badge = document.getElementById("home-total-badge");
