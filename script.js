@@ -136,6 +136,7 @@ const app = {
         Object.values(out.accounts).forEach(acc => {
             if (!Array.isArray(acc.history)) acc.history = [];
             if (typeof acc.photo !== "string") acc.photo = "";
+if (typeof acc.archived !== "boolean") acc.archived = false;
             if (!acc.legacy || typeof acc.legacy.maxDD !== "number") acc.legacy = { maxDD: 0 };
             if (!acc.journal) acc.journal = { trades: [] };
             if (!Array.isArray(acc.journal.trades)) acc.journal.trades = [];
@@ -495,8 +496,12 @@ const app = {
     // ============================================
     // CORE: saldo & ringkasan (ala MT5)
     // ============================================
-    allAccounts() {
+      allAccounts() {
         return Object.values(state.trading.accounts);
+    },
+
+    activeAccounts() {
+        return this.allAccounts().filter(a => !a.archived);
     },
 
     combinedHistory() {
@@ -527,10 +532,14 @@ const app = {
     },
 
     summarize(entries) {
-        const s = { profit: 0, deposit: 0, withdraw: 0, swap: 0, commission: 0, adjustment: 0, trades: 0, wins: 0, grossProfit: 0, grossLoss: 0 };
+        const s = { profit: 0, deposit: 0, withdraw: 0, swap: 0, commission: 0, adjustment: 0, transfer: 0, transferIn: 0, transferOut: 0, trades: 0, wins: 0, grossProfit: 0, grossLoss: 0 };
         entries.forEach(e => {
             if (e.kind === "deposit") s.deposit += e.pnlValue || 0;
             else if (e.kind === "withdraw") s.withdraw += e.pnlValue || 0; // sudah negatif
+            else if (e.kind === "transfer") {
+                const v = e.pnlValue || 0;
+                if (v >= 0) s.transferIn += v; else s.transferOut += -v;
+            }
             else if (e.kind === "adjustment") s.adjustment += e.pnlValue || 0;
             else if (e.kind === "opening") {
                 // hasil trading lama dari "Sesuaikan Akun Lama": masuk ke Keuntungan/Swap/Komisi, tapi bukan hitungan trade
@@ -546,8 +555,9 @@ const app = {
                 if (net > 0) { s.wins += 1; s.grossProfit += net; } else s.grossLoss += Math.abs(net);
             }
         });
-        ["profit", "deposit", "withdraw", "swap", "commission", "adjustment", "grossProfit", "grossLoss"].forEach(k => { s[k] = this.round2(s[k]); });
-        s.saldo = this.round2(s.deposit + s.withdraw + s.profit + s.swap + s.commission + s.adjustment);
+        ["profit", "deposit", "withdraw", "swap", "commission", "adjustment", "transferIn", "transferOut", "grossProfit", "grossLoss"].forEach(k => { s[k] = this.round2(s[k]); });
+        s.transfer = this.round2(s.transferIn - s.transferOut);
+        s.saldo = this.round2(s.deposit + s.withdraw + s.transfer + s.profit + s.swap + s.commission + s.adjustment);
         s.net = this.round2(s.grossProfit - s.grossLoss);
         return s;
     },
@@ -572,6 +582,7 @@ const app = {
             ["Swap", s.swap, ""],
             ["Komisi", s.commission, ""]
         ];
+        if (Math.abs(s.transfer || 0) > 0.004) rows.push(["Transfer", s.transfer, ""]);
         if (Math.abs(s.adjustment) > 0.004) rows.push(["Koreksi", s.adjustment, ""]);
         rows.push(["Saldo", s.saldo, "mt5-total"]);
         return rows.map(([label, val, cls]) => `
@@ -637,11 +648,12 @@ const app = {
         const w = this.walkDrawdown(entries);
         const legacy = legacyMaxDD || 0;
         const useLegacy = legacy > w.maxDD;
+                const moneyIn = this.round2(s.deposit + s.transferIn);
+        const moneyOut = this.round2(-s.withdraw + s.transferOut);
         return {
-            moneyIn: s.deposit,
-            moneyOut: this.round2(-s.withdraw),
+            moneyIn, moneyOut,
             saldo: s.saldo,
-            net: this.round2(-s.withdraw + s.saldo - s.deposit),
+            net: this.round2(moneyOut + s.saldo - moneyIn),
             maxDD: useLegacy ? this.round2(legacy) : w.maxDD,
             maxDDPct: useLegacy ? null : w.maxDDPct, // null = persen gak diketahui (angka dari catatan manual)
             curDD: w.curDD,
@@ -728,7 +740,7 @@ const app = {
             monthId: oldMonthId,
             label: this.monthLabel(oldMonthId),
             profit: sum.grossProfit, loss: sum.grossLoss, net: sum.net, trades: sum.trades,
-            mt5: { profit: sum.profit, deposit: sum.deposit, withdraw: sum.withdraw, swap: sum.swap, commission: sum.commission, adjustment: sum.adjustment, saldo: sum.saldo },
+            mt5: { profit: sum.profit, deposit: sum.deposit, withdraw: sum.withdraw, swap: sum.swap, commission: sum.commission, adjustment: sum.adjustment, transfer: sum.transfer, saldo: sum.saldo },
             reasonStats: buildStats(tr => tr.reasons || []),
             moodStats: buildStats(tr => [tr.mood])
         });
@@ -749,7 +761,7 @@ const app = {
 
         // kartu akun bergaya "pocket": foto di atas, nama, saldo, chip hasil bersih
         const container = document.getElementById("trading-accounts-list");
-        const accounts = this.allAccounts();
+        const accounts = this.activeAccounts();
         container.innerHTML = "";
 
         accounts.forEach(acc => {
@@ -803,8 +815,67 @@ const app = {
             const hint = document.createElement("p");
             hint.className = "empty-state acc-hint";
             hint.textContent = 'Belum ada akun trading. Tambah akun dulu, misal "Akun Cent".';
-            container.appendChild(hint);
+                        container.appendChild(hint);
         }
+        this.renderArchived();
+    },
+
+        archivedOpen: false,
+
+    renderArchived() {
+        const el = document.getElementById("archived-section");
+        if (!el) return;
+        const list = this.allAccounts().filter(a => a.archived);
+        el.innerHTML = "";
+        if (list.length === 0) return;
+
+        const header = document.createElement("div");
+        header.className = "week-group-header";
+        header.style.marginTop = "24px";
+        header.innerHTML = `
+            <div><span class="week-group-title">Diarsipkan</span><span class="week-group-sub">${list.length} akun</span></div>
+            <i class="fa-solid fa-chevron-down week-group-chevron${this.archivedOpen ? " rotated" : ""}"></i>`;
+        const body = document.createElement("div");
+        body.className = "week-group-body" + (this.archivedOpen ? "" : " collapsed");
+
+        list.forEach(acc => {
+            const row = document.createElement("div");
+            row.className = "arch-row";
+            row.onclick = () => this.openTradingAccount(acc.id);
+            row.innerHTML = `<div><b>${this.esc(acc.name)}</b><small>${this.money(this.balanceOf(acc))}</small></div>
+                             <i class="fa-solid fa-chevron-right" style="color:var(--text-secondary)"></i>`;
+            body.appendChild(row);
+        });
+        header.onclick = () => {
+            this.archivedOpen = !this.archivedOpen;
+            body.classList.toggle("collapsed");
+            header.querySelector(".week-group-chevron").classList.toggle("rotated");
+        };
+        el.appendChild(header);
+        el.appendChild(body);
+    },
+
+    toggleArchiveCurrent() {
+        const acc = this.getCurrentAccount();
+        if (!acc) return;
+        const archiving = !acc.archived;
+        const bal = this.balanceOf(acc);
+        this.openSheet({
+            title: archiving ? `Arsipkan "${acc.name}"?` : `Aktifkan "${acc.name}" lagi?`,
+            message: archiving
+                ? "Akun disembunyikan dari daftar utama. Data & saldonya tetap tersimpan dan tetap dihitung di total." +
+                  (bal > 0.004 ? ` Masih ada saldo ${this.formatUSC(bal)}, pastikan memang sudah gak dipakai.` : "")
+                : "Akun akan muncul lagi di daftar utama.",
+            confirmLabel: archiving ? "Arsipkan" : "Aktifkan",
+            onConfirm: () => {
+                acc.archived = archiving;
+                this.saveState();
+                this.navigate("trading-accounts");
+                this.refreshAll();
+                this.toast(archiving ? "Akun diarsipkan 📦" : "Akun diaktifkan lagi ✨");
+                return null;
+            }
+        });
     },
 
     handleAddTradingAccount() {
@@ -1290,6 +1361,39 @@ const app = {
         });
     },
 
+    handleTransfer() {
+        const acc = this.getCurrentAccount();
+        if (!acc) return;
+        const targets = this.activeAccounts().filter(a => a.id !== acc.id);
+        if (targets.length === 0) { this.toast("Belum ada akun tujuan. Tambah akun lain dulu."); return; }
+        this.openSheet({
+            title: "Transfer ke Akun Lain",
+            message: `Saldo ${acc.name}: ${this.formatUSC(this.balanceOf(acc))}. Transfer tidak dihitung sebagai penarikan.`,
+            fields: [
+                { id: "to", label: "Akun Tujuan", type: "select", options: targets.map(a => ({ value: a.id, label: a.name })), default: targets[0].id },
+                { id: "amount", label: "Jumlah (USC)", type: "text", inputmode: "decimal", placeholder: "" }
+            ],
+            confirmLabel: "Transfer",
+            onConfirm: values => {
+                const to = state.trading.accounts[values.to];
+                if (!to) return "Pilih akun tujuan dulu.";
+                const amt = this.parseDecimal(values.amount);
+                if (amt === null || amt <= 0) return "Masukkan jumlah yang valid.";
+                if (amt > this.balanceOf(acc) + 0.004) return "Saldo akun ini tidak cukup.";
+                const tid = "t_" + Date.now().toString(36) + Math.random().toString(36).slice(2, 5);
+                const out = this.makeEntry("transfer", "Transfer ke " + to.name, "TRANSFER", "badge-sell", -amt);
+                const inn = this.makeEntry("transfer", "Transfer dari " + acc.name, "TRANSFER", "badge-buy", amt);
+                out.transferId = tid;
+                inn.transferId = tid;
+                acc.history.push(out);
+                to.history.push(inn);
+                this.afterChange();
+                this.toast(`Transfer ${this.formatUSC(amt)} ke ${to.name} berhasil 🔁`);
+                return null;
+            }
+        });
+    },
+
     handleBalanceCorrection() {
         const acc = this.getCurrentAccount();
         if (!acc) return;
@@ -1327,6 +1431,14 @@ const app = {
         const idx = acc.history.findIndex(e => e.id === id);
         if (idx === -1) return;
         const entry = acc.history[idx];
+        if (entry.kind === "transfer" && entry.transferId) {
+            this.allAccounts().forEach(a => {
+                a.history = a.history.filter(e => e.transferId !== entry.transferId);
+            });
+            this.afterChange();
+            this.toast("Transfer dihapus di kedua akun.");
+            return;
+        }
         if (entry.kind === "trade" && entry.tradeId) {
             acc.journal.trades = acc.journal.trades.filter(t => t.id !== entry.tradeId);
         }
@@ -1361,7 +1473,11 @@ const app = {
         this.openMenu("Pengaturan Akun", [
             { icon: "fa-image", label: "Ubah Nama & Foto", desc: "Ganti nama akun dan foto kartunya", onClick: () => this.handleJournalSettings() },
             { icon: "fa-file-import", label: "Sesuaikan Akun Lama", desc: "Masukin Keuntungan, Deposito, Penarikan dari MT5 sekali isi", onClick: () => this.handleImportLegacy() },
-            { icon: "fa-pen", label: "Koreksi Saldo", desc: "Samain saldo app dengan saldo MT5 sekarang", onClick: () => this.handleBalanceCorrection() }
+            { icon: "fa-pen", label: "Koreksi Saldo", desc: "Samain saldo app dengan saldo MT5 sekarang", onClick: () => this.handleBalanceCorrection() },
+            { icon: acc.archived ? "fa-box-open" : "fa-box-archive",
+              label: acc.archived ? "Aktifkan Kembali" : "Arsipkan Akun",
+              desc: acc.archived ? "Munculkan lagi di daftar akun" : "Sembunyikan akun yang sudah gak dipakai",
+              onClick: () => this.toggleArchiveCurrent() }
         ]);
     },
 
@@ -2120,6 +2236,24 @@ const app = {
                 holder.appendChild(actions);
                 holder.appendChild(fileInput);
                 wrap.appendChild(holder);
+           } else if (field.type === "select") {
+                const list = document.createElement("div");
+                list.className = "checklist";
+                list.id = `sheet-input-${field.id}`;
+                list.dataset.value = field.default || (field.options[0] && field.options[0].value) || "";
+                field.options.forEach(opt => {
+                    const btn = document.createElement("button");
+                    btn.type = "button";
+                    btn.className = "checklist-option" + (opt.value === list.dataset.value ? " active" : "");
+                    btn.textContent = opt.label;
+                    btn.addEventListener("click", () => {
+                        list.dataset.value = opt.value;
+                        list.querySelectorAll(".checklist-option").forEach(b => b.classList.remove("active"));
+                        btn.classList.add("active");
+                    });
+                    list.appendChild(btn);
+                });
+                wrap.appendChild(list);
             } else if (field.type === "textarea") {
                 const textarea = document.createElement("textarea");
                 textarea.className = "sheet-input";
@@ -2152,7 +2286,7 @@ const app = {
             const values = {};
             fields.forEach(field => {
                 const el = document.getElementById(`sheet-input-${field.id}`);
-                if (field.type === "segmented") values[field.id] = el.dataset.value;
+                if (field.type === "segmented" || field.type === "select") values[field.id] = el.dataset.value;
                 else if (field.type === "checklist") values[field.id] = JSON.parse(el.dataset.value || "[]");
                 else if (field.type === "image") values[field.id] = el.dataset.value || "";
                 else values[field.id] = el.value;

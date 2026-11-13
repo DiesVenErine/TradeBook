@@ -132,6 +132,7 @@
 
                     <div class="section-title">Akun Trading</div>
                     <div id="trading-accounts-list" class="acc-grid"></div>
+<div id="archived-section"></div>
                 </section>
 
                 <!-- ================= DETAIL AKUN ================= -->
@@ -189,13 +190,17 @@
                         </div>
                     </div>
 
-                    <div class="action-buttons" style="margin-top: 16px">
+                    <div class="action-buttons three" style="margin-top: 16px">
                         <button class="btn btn-primary" onclick="app.handleDeposit()">
                             <i class="fa-solid fa-arrow-down"></i> Deposito
                         </button>
                         <button class="btn btn-secondary" onclick="app.handleWithdraw()">
-                            <i class="fa-solid fa-arrow-up"></i> Penarikan
+                           <i class="fa-solid fa-arrow-up"></i> Penarikan
                         </button>
+                        <button class="btn btn-secondary" onclick="app.handleTransfer()">
+                            <i class="fa-solid fa-right-left"></i> Transfer
+                        </button> 
+                        
                     </div>
 
                     <!-- RISK GUARD -->

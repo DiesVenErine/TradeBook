@@ -1737,3 +1737,15 @@ html:not([data-theme="dark"]) .switch-slider {
 .swatch-custom{--sw:#9b7bff}
 .hex-input{height:46px;padding:0 14px;border-radius:14px;border:1px solid var(--border-color);background:var(--inset-bg,var(--surface-2));color:var(--text-primary);font-size:.95rem;outline:none}
 .hex-input:focus{border-color:var(--primary-color)}
+.action-buttons.three { grid-template-columns: repeat(3, 1fr); gap: 10px; }
+.action-buttons.three .btn { padding: 14px 4px; font-size: 0.85rem; flex-direction: column; gap: 6px; }
+.action-buttons.three .btn i { font-size: 1.1rem; }
+
+.arch-row {
+    display: flex; align-items: center; justify-content: space-between; gap: 12px;
+    padding: 14px 16px; margin-bottom: 10px; cursor: pointer;
+    background: var(--surface-color); border: 1px solid var(--border-color); border-radius: 18px;
+    opacity: 0.85;
+}
+.arch-row b { display: block; font-size: 0.95rem; }
+.arch-row small { color: var(--text-secondary); font-size: 0.78rem; }
